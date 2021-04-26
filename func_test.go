@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync/atomic"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -67,30 +67,18 @@ func recvPublish(channel string, data string) {
 }
 
 func TestTimeToStamp(t *testing.T) {
-	var name int32
-	swapInt32 := atomic.CompareAndSwapInt32(&name, 3, 5)
-	fmt.Println(swapInt32)
-	fmt.Println(name)
+	res(&CmdTaskMsgTestC2S{})
 }
 
-type Student struct {
-	Name             string
+func res(v interface{}) {
+	msgType := reflect.TypeOf(v)
+	fmt.Println(msgType)
+	fmt.Println(msgType.Kind())
+	fmt.Println(reflect.Ptr)
 }
 
-type GetInterface interface {
-	GetName() string
+type CmdTaskMsgTestC2S struct {
+	Test  string `match:"k"`
+	Task  string `match:"k"`
+	Gamer int
 }
-
-func (s *Student)GetName() string  {
-	return ""
-}
-
-type S struct {
-	Student
-}
-
-func (s *S)GetName() string    {
-
-	return ""
-}
-

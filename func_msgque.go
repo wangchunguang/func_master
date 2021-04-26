@@ -242,7 +242,7 @@ func (r *msgQue) tryCallback(msg *Message) (re bool) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-
+			LogError(err)
 		}
 		r.callbackLock.Unlock()
 	}()
@@ -411,7 +411,6 @@ const (
 
 type HandlerFunc func(msgque IMsgQue, msg *Message) bool
 
-
 // 消息处理程序
 type IMsgHandler interface {
 	OnNewMsgQue(msgque IMsgQue) bool                         //新的消息队列
@@ -423,16 +422,81 @@ type IMsgHandler interface {
 
 // 消息注册
 type IMsgRegister interface {
-	// 注册
+	// 注册msgMap消息
 	Register(cmd, act uint8, fun HandlerFunc)
-	// 注册消息
+	// 注册typeMap消息
 	RegisterMsg(v interface{}, fun HandlerFunc)
 }
 
-
 // Def的消息处理
 type DefMsgHandler struct {
-	msgMap map[int32]HandlerFunc
+	msgMap  map[int]HandlerFunc
 	typeMap map[reflect.Type]HandlerFunc
 }
 
+func (r *DefMsgHandler) OnNewMsgQue(msgque IMsgQue) bool {
+	return true
+}
+
+func (r *DefMsgHandler) OnDelMsgQue(msgque IMsgQue) {
+
+}
+
+func (r *DefMsgHandler) OnProcessMsg(msgque IMsgQue, msg *Message) bool {
+	return true
+}
+
+func (r *DefMsgHandler) OnConnectComplete(msgque IMsgQue, ok bool) bool {
+	return true
+}
+
+func (r *DefMsgHandler) GetHandlerFunc(msgque IMsgQue, msg *Message) HandlerFunc {
+	// 回调不为空，直接返回正在处理的消息
+	if msgque.tryCallback(msg) {
+		return r.OnProcessMsg
+	}
+	// 获取计算动作与指令组合的数据为0
+	if msg.CmdAct() == 0 {
+		if r.typeMap != nil {
+			if f, ok := r.typeMap[reflect.TypeOf(msg.C2S())]; ok {
+				return f
+			}
+		}
+	} else if r.msgMap != nil { // 消息map里面有初始化的消息
+		if f, ok := r.msgMap[msg.CmdAct()]; ok {
+			return f
+		}
+
+	}
+	return nil
+
+}
+
+func (r *DefMsgHandler) Register(cmd, act uint8, fun HandlerFunc) {
+	if r.msgMap == nil {
+		r.msgMap = map[int]HandlerFunc{}
+	}
+	r.msgMap[CmdAct(cmd, act)] = fun
+}
+
+func (r *DefMsgHandler) RegisterMsg(v interface{}, fun HandlerFunc) {
+	msgType := reflect.TypeOf(v)
+	if msgType != nil && msgType.Kind() != reflect.Ptr {
+		LogFatal("message pointer required")
+		return
+	}
+	if r.typeMap == nil {
+		r.typeMap = map[reflect.Type]HandlerFunc{}
+	}
+	r.typeMap[msgType] = fun
+}
+
+type EchoMsgHandler struct {
+	DefMsgHandler
+}
+
+func (r *EchoMsgHandler) OnProcessMsg(msgque IMsgQue, msg *Message) bool {
+	msgque.Send(msg)
+	return true
+
+}
