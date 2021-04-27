@@ -202,7 +202,7 @@ func NewDataMsg(data []byte) *Message {
 }
 
 func NewPbMsg(msg proto.Message) *Message {
-	return NewDataMsg(PbData(msg))
+	return NewDataMsg(PBData(msg))
 }
 
 func NewMsg(cmd, act uint8, index, err uint16, data []byte) *Message {
