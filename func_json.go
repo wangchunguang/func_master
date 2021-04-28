@@ -39,3 +39,26 @@ func GetUnMarshalToJson(data []byte) (msg interface{}, err error) {
 	}
 	return msg, err
 }
+
+func JsonUnPack(data []byte, msg interface{}) error {
+	if data == nil || msg == nil {
+		return ErrJsonUnPack
+	}
+	if err := json.Unmarshal(data, msg); err != nil {
+		LogInfo("unmarshal json err:%v data:%s", err, data)
+		return ErrJsonUnPack
+	}
+	return nil
+}
+
+func JsonPack(msg interface{}) ([]byte, error) {
+	if msg == nil {
+		return nil, ErrJsonPack
+	}
+	if data, err := json.Marshal(msg); err != nil {
+		LogInfo("marshal json err:%v data:%s", err, data)
+		return nil, ErrJsonUnPack
+	} else {
+		return data, nil
+	}
+}

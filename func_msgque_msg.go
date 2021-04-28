@@ -69,6 +69,10 @@ func (r *MessageHead) Tag() int {
 	return Tag(r.Cmd, r.Act, r.Index)
 }
 
+func (r *MessageHead) CmdAct() int {
+	return CmdAct(r.Cmd, r.Act)
+}
+
 func (r *MessageHead) String() string {
 	return fmt.Sprintf("Len:%v Error:%v Cmd:%v Act:%v Index:%v Flags:%v", r.Len, r.Error, r.Cmd, r.Act, r.Index, r.Flags)
 }

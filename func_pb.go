@@ -3,7 +3,6 @@ package func_master
 import (
 	"encoding/json"
 	"github.com/golang/protobuf/proto"
-	"github.com/vmihailenco/msgpack"
 )
 
 type PBModel struct{}
@@ -38,40 +37,6 @@ func (p *PBModel) ParsePbData(data []byte, v proto.Message) bool {
 
 func (p *PBModel) ParsePbStr(str string, v proto.Message) bool {
 	return ParsePbStr(str, v)
-}
-
-func DBData(v proto.Message) []byte {
-	if data, err := msgpack.Marshal(v); err == nil {
-		return data
-	} else {
-		LogError("msgpack :%v dbdata failed :%s", v, err.Error())
-		return nil
-	}
-}
-
-func DBStr(v proto.Message) string {
-	if data, err := msgpack.Marshal(v); err == nil {
-		return string(data)
-	} else {
-		LogError("msgpack :%s dbstring failed :%s", v, err.Error())
-		return ""
-	}
-}
-
-func ParseDBData(data []byte, v proto.Message) bool {
-	if err := msgpack.Unmarshal(data, v); err != nil {
-		LogError("msgpack parsedbdata data :%v err :%s", data, err.Error())
-		return false
-	}
-	return true
-}
-
-func ParseDBStr(str string, v proto.Message) bool {
-	if err := msgpack.Unmarshal([]byte(str), v); err != nil {
-		LogError("msgpack parsedbstr str :%v err:%s", str, err.Error())
-		return false
-	}
-	return true
 }
 
 func PBData(v proto.Message) []byte {
@@ -142,4 +107,70 @@ func ParseJsonStr(str string, v proto.Message) bool {
 		return false
 	}
 	return true
+}
+
+// protobuf 的解析器
+type pBParser struct {
+	*Parser
+}
+
+// 解析C2S
+func (r *pBParser) ParseC2S(msg *Message) (IMsgParser, error) {
+	if msg == nil {
+		return nil, ErrPBUnPack
+	}
+	// 某些消息不用解析
+	if msg.Head.Flags&FlagNoParse > 0 {
+		return nil, nil
+	}
+	if p, ok := r.msgMap[msg.Head.CmdAct()]; ok {
+		if p.C2S() != nil {
+			if err := PBUnPack(msg.Data, p.C2S()); err != nil {
+				return nil, err
+			}
+			p.parser = r
+			return &p, nil
+		} else {
+			return &p, nil
+		}
+
+	}
+	return nil, ErrPBUnPack
+}
+
+func PBUnPack(data []byte, msg interface{}) error {
+	if msg == nil {
+		return ErrPBUnPack
+	}
+	if err := proto.Unmarshal(data, msg.(proto.Message)); err != nil {
+		LogError("PBUnPack Parsing failed msg :%v err:%s", msg, err.Error())
+		return ErrPBUnPack
+	}
+	return nil
+
+}
+
+func PBPack(msg interface{}) ([]byte, error) {
+	if msg == nil {
+		return nil, ErrPBPack
+	}
+	if data, err := proto.Marshal(msg.(proto.Message)); err != nil {
+		LogError("PBPack :%v marshal failure err :%s ", msg, err.Error())
+		return nil, err
+	} else {
+		return data, ErrPBPack
+	}
+}
+
+func (r *pBParser) PackMsg(v interface{}) []byte {
+	data, _ := PBPack(v)
+	return data
+}
+
+func (r *pBParser) GetRemindMsg(err error, t MsgType) *Message {
+	if t == MsgTypeMsg {
+		return NewErrMsg(err)
+	} else {
+		return NewStrMsg(err.Error() + "\n")
+	}
 }
