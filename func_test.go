@@ -98,9 +98,24 @@ func TestWaitForSystemExit(t *testing.T) {
 }
 
 func TestDaemon(t *testing.T) {
-	fmt.Println(reflect.TypeOf(CmdTaskMsgTestC2S{}))
-	num := 10
-	valueOf := reflect.ValueOf(num)
-	fmt.Println(valueOf.Elem())
-	fmt.Println(valueOf)
+	//fmt.Println(reflect.TypeOf(CmdTaskMsgTestC2S{}))
+	//num := 123
+	cmd := CmdTaskMsgTestC2S{
+		Test:  "123",
+		Task:  "231",
+		Gamer: 0,
+	}
+	valueOf := reflect.ValueOf(&cmd)
+	fmt.Println(valueOf.Kind())
+	switch valueOf.Kind() {
+	case reflect.Ptr:
+		fmt.Println(valueOf.IsNil())
+		fmt.Println(valueOf.Elem())
+	case reflect.Int:
+
+	}
+	fmt.Println(reflect.Int)
+	fmt.Println(valueOf.Type())
+	fmt.Println(valueOf.Kind())
+
 }
