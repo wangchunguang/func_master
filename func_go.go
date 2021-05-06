@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 )
 
-var poolChan = make(chan func(),1)
+var poolChan = make(chan func(), 1)
 var once sync.Once
 
 func Go(fn func()) {
@@ -70,10 +70,6 @@ func GoForLog(fn func(cstop chan struct{})) bool {
 	}()
 	return true
 }
-func IsStop() bool {
-	return stop == 1
-}
-
 
 func goForRedis(fn func()) {
 	waitAllForRedis.Add(1)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -81,4 +82,25 @@ type CmdTaskMsgTestC2S struct {
 	Test  string `match:"k"`
 	Task  string `match:"k"`
 	Gamer int
+}
+
+func TestWaitForSystemExit(t *testing.T) {
+	signal.Notify(stopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
+	fmt.Println(11111111111)
+
+	select {
+	case s := <-stopChanForSys:
+		fmt.Println(s)
+		fmt.Println(2222222222)
+
+	}
+	fmt.Println(6666666666)
+}
+
+func TestDaemon(t *testing.T) {
+	fmt.Println(reflect.TypeOf(CmdTaskMsgTestC2S{}))
+	num := 10
+	valueOf := reflect.ValueOf(num)
+	fmt.Println(valueOf.Elem())
+	fmt.Println(valueOf)
 }

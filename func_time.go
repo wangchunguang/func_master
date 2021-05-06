@@ -156,6 +156,11 @@ func TimeToString(t time.Time) string {
 	return str
 }
 
+func DateToUnix(date string) int64 {
+	t, _ := time.ParseInLocation("2006-01-02 15:04:05", date, time.Local)
+	return t.Unix()
+}
+
 // 将时间转换为时间搓 毫秒
 func TimeToStamp(t time.Time) int64 {
 	millisecond := t.UnixNano() / 1e6
