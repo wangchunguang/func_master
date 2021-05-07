@@ -1,6 +1,7 @@
 package func_master
 
 import (
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -91,6 +92,73 @@ func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, pa
 	return &msg
 }
 
+func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Parser) *tcpMsgQue {
+	msgque := tcpMsgQue{
+		msgQue: msgQue{
+			id:            atomic.AddUint32(&msgqueId, 1),
+			cwrite:        make(chan *Message, 64),
+			msgTyp:        msgty,
+			handler:       handler,
+			timeout:       DefMsgQueTimeout,
+			connTyp:       ConnTypeAccept,
+			lastTick:      Timestamp,
+			parserFactory: parser,
+		},
+		conn: conn,
+	}
+
+	if parser != nil {
+		msgque.parser = parser.Get()
+	}
+	tcpConn, ok := conn.(*net.TCPConn)
+	if !ok {
+		LogError("TCPConn error")
+	}
+	tcpConn.SetNoDelay(true)
+	msgqueMapSync.Lock()
+	msgqueMap[msgque.id] = &msgque
+	msgqueMapSync.Unlock()
+	return &msgque
+}
+
+func (r *tcpMsgQue) read() {
+	r.wait.Add(1)
+	defer func() {
+		r.wait.Done()
+		if err := recover(); err != nil {
+			LogError("msgque read panic id:%v err:%v", r.id, err.(error))
+			LogStack()
+		}
+		r.Stop()
+	}()
+	r.readMsg()
+}
+
+func (r *tcpMsgQue) readMsg() {
+	// 设置信息头大小
+	headData := make([]byte, MsgHeadSize)
+	var data []byte
+	var head *MessageHead
+	for !r.IsStop() {
+		if head == nil {
+			_, err := io.ReadFull(r.conn, headData)
+			if err != nil {
+				if err != io.EOF {
+					LogDebug("msgque:%v recv data err:%v", r.id, err)
+				}
+				break
+			}
+			if head = NewMessageHead(headData); head == nil {
+				LogInfo("Did not get the data of the message header headDate  :%s", headData)
+				break
+			}
+		} else {
+
+		}
+
+	}
+}
+
 func (r *tcpMsgQue) listen() {
 	c := make(chan struct{})
 	Go2(func(cstop chan struct{}) {
@@ -100,5 +168,33 @@ func (r *tcpMsgQue) listen() {
 		}
 		r.listener.Close()
 	})
-
+	for !r.IsStop() {
+		accept, err := r.listener.Accept()
+		if err != nil {
+			if stop == 0 && r.stop == 0 {
+				LogInfo("Message acceptance failed msgque :%v  err :%s", r.id, err)
+			}
+			break
+		} else {
+			Go(func() {
+				// 初始化tcp接收
+				msgque := newTcpAccept(accept, r.msgTyp, r.handler, r.parserFactory)
+				// 设置是否加密
+				msgque.SetEncrypt(r.GetEncrypt())
+				if r.handler.OnNewMsgQue(msgque) {
+					msgque.init = true
+					msgque.available = true
+					Go(func() {
+						LogInfo("process read for msgque:%d", msgque.id)
+						msgque.read()
+						LogInfo("process read end for msgque:%d", msgque.id)
+					})
+				} else {
+					msgque.Stop()
+				}
+			})
+		}
+	}
+	close(c)
+	r.Stop()
 }

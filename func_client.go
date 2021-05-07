@@ -10,14 +10,16 @@ import (
 // IMsgHandler 消息处理程序的接口
 // parser 解析器
 // encrypt 是否加密
-// 例如：StartServer("tcp://127.0.0.1:8080", MsgTypeRpc, &msgHandler{}, PbParser, true)
+//var PbParser = &Parser{Type: ParserTypePB}
+//var RpcHandler = &msgHandler{}
+// 例如：StartServer("tcp://127.0.0.1:8080", MsgTypeRpc, RpcHandler, PbParser, true)
 func StartServer(addr string, typ MsgType, handler IMsgHandler, parser *Parser, encrypt bool) error {
 	addrs := strings.Split(addr, "://")
 	if addrs[0] == "tcp" || addrs[0] == "all" {
 		listen, err := net.Listen("tcp", addrs[1])
 		if err == nil {
 			LogInfo("listen on :%v", listen.Addr())
-			// 初始化tcp配置
+			// 初始化tcp监听
 			tcpListen := NewTcpListen(listen, typ, handler, parser, addr)
 			//	 设置加密
 			tcpListen.SetEncrypt(encrypt)

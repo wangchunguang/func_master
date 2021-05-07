@@ -77,6 +77,7 @@ func (r *MessageHead) String() string {
 	return fmt.Sprintf("Len:%v Error:%v Cmd:%v Act:%v Index:%v Flags:%v", r.Len, r.Error, r.Cmd, r.Act, r.Index, r.Flags)
 }
 
+// 解析请求头
 func NewMessageHead(data []byte) *MessageHead {
 	if len(data) < MsgHeadSize {
 		LogError("Insufficient data length")

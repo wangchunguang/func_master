@@ -110,6 +110,11 @@ func (r *msgQue) GetMsgType() MsgType {
 	return r.msgTyp
 }
 
+// 获取是否加密
+func (r *msgQue) GetEncrypt() bool {
+	return r.encrypt
+}
+
 // 返回通道类型
 func (r *msgQue) GetConnType() ConnType {
 	return r.connTyp
