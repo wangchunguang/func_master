@@ -152,10 +152,30 @@ func (r *tcpMsgQue) readMsg() {
 				LogInfo("Did not get the data of the message header headDate  :%s", headData)
 				break
 			}
+			if head.Len == 0 {
+				if !r.processMsg(r, &Message{Head: head}) {
+					LogError("msgque:%v process msg cmd:%v act:%v", r.id, head.Cmd, head.Act)
+					break
+				}
+				head = nil
+			} else {
+				data = make([]byte, head.Len)
+			}
 		} else {
+			_, err := io.ReadFull(r.conn, data)
+			if err != nil {
+				LogError("msgque:%v recv data err:%v", r.id, err)
+				break
+			}
+			if !r.processMsg(r, &Message{Head: head, Data: data}) {
+				LogError("msgque:%v process msg cmd:%v act:%v", r.id, head.Cmd, head.Act)
+				break
+			}
 
+			head = nil
+			data = nil
 		}
-
+		r.lastTick = Timestamp
 	}
 }
 
