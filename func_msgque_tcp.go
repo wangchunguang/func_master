@@ -171,7 +171,6 @@ func (r *tcpMsgQue) readMsg() {
 				LogError("msgque:%v process msg cmd:%v act:%v", r.id, head.Cmd, head.Act)
 				break
 			}
-
 			head = nil
 			data = nil
 		}
