@@ -16,7 +16,6 @@ type tcpMsgQue struct {
 	connecting int32 // 为true表示连接中
 }
 
-
 // 获取tcp类型
 func (t *tcpMsgQue) GetNetType() NetType {
 	return NetTypeTcp
@@ -66,12 +65,40 @@ func (t *tcpMsgQue) LocalAddr() string {
 	return ""
 }
 
-
 // 删除网络地址
 func (t *tcpMsgQue) RemoteAddr() string {
 	if t.conn != nil {
 		return t.conn.RemoteAddr().String()
 	}
 	return ""
+
+}
+
+func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, parser *Parser, addr string) *tcpMsgQue {
+	msg := tcpMsgQue{
+		msgQue: msgQue{
+			id:            atomic.AddUint32(&msgqueId, 1),
+			msgTyp:        msgtyp,
+			handler:       handler,
+			parserFactory: parser,
+			connTyp:       ConnTypeListen,
+		},
+		listener: listener,
+	}
+	msgqueMapSync.Lock()
+	msgqueMap[msg.id] = &msg
+	msgqueMapSync.Unlock()
+	return &msg
+}
+
+func (r *tcpMsgQue) listen() {
+	c := make(chan struct{})
+	Go2(func(cstop chan struct{}) {
+		select {
+		case <-cstop:
+		case <-c:
+		}
+		r.listener.Close()
+	})
 
 }

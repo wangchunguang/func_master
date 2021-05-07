@@ -20,6 +20,7 @@ type MsgType int
 
 const (
 	MsgTypeMsg MsgType = iota //消息基于确定的消息头
+	MsgTypeRpc                //消息基于确定的消息头
 )
 
 type NetType int
@@ -271,6 +272,21 @@ func (r *msgQue) baseStop() {
 	msgqueMapSync.Unlock()
 }
 
+// 设置加密
+func (r *msgQue) SetEncrypt(e bool) {
+	r.encrypt = e
+	if e && r.connTyp == ConnTypeAccept {
+		r.oseed = uint32(Timestamp)
+		r.iseed = uint32(Timestamp) + uint32(RandNumber(99999))
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint32(data, r.iseed)
+		binary.BigEndian.PutUint32(data[4:], r.oseed)
+		msg := NewMsg(0, 0, 0, 0, data)
+		//  将加密种子传给客户端
+		r.cwrite <- msg
+	}
+}
+
 // 处理消息
 func (r *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 	if r.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
@@ -498,5 +514,40 @@ type EchoMsgHandler struct {
 func (r *EchoMsgHandler) OnProcessMsg(msgque IMsgQue, msg *Message) bool {
 	msgque.Send(msg)
 	return true
+}
 
+type msgHandler struct {
+	DefMsgHandler
+	NewMsgQue       func(msgque IMsgQue) bool               //新的消息队列
+	DelMsgQue       func(msgque IMsgQue)                    //消息队列关闭
+	ProcessMsg      func(msgque IMsgQue, msg *Message) bool //默认的消息处理函数
+	ConnectComplete func(msgque IMsgQue, ok bool) bool      //连接成功
+}
+
+func (r *msgHandler) OnNewMsgQue(msgque IMsgQue) bool {
+	if r.NewMsgQue != nil {
+		return r.NewMsgQue(msgque)
+	}
+	return true
+}
+
+func (r *msgHandler) OnDelMsgQue(msgque IMsgQue) {
+	if r.DelMsgQue != nil {
+		r.DelMsgQue(msgque)
+	}
+
+}
+
+func (r *msgHandler) OnProcessMsg(msgque IMsgQue, msg *Message) bool {
+	if r.ProcessMsg != nil {
+		return r.ProcessMsg(msgque, msg)
+	}
+
+	return true
+}
+func (r *msgHandler) OnConnectComplete(msgque IMsgQue, ok bool) bool {
+	if r.ConnectComplete != nil {
+		return r.ConnectComplete(msgque, ok)
+	}
+	return true
 }

@@ -1,6 +1,7 @@
 package func_master
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"os/signal"
@@ -117,5 +118,45 @@ func TestDaemon(t *testing.T) {
 	fmt.Println(reflect.Int)
 	fmt.Println(valueOf.Type())
 	fmt.Println(valueOf.Kind())
+
+}
+
+func TestSetTimeout(t *testing.T) {
+	StartTick = time.Now().UnixNano() / 1000000
+	NowTick = StartTick
+	Timestamp = NowTick / 1000
+	u := uint32(Timestamp)
+	u1 := uint32(Timestamp) + uint32(RandNumber(99999))
+
+	data := make([]byte, 8)
+	binary.BigEndian.PutUint32(data, u)
+	fmt.Println(data)
+	binary.BigEndian.PutUint32(data[4:], u1)
+	fmt.Println(Timestamp)
+	fmt.Println(u)
+	fmt.Println(u1)
+	fmt.Println(data)
+
+}
+
+func TestGetStatis(t *testing.T) {
+	c := make(chan int)
+	select {
+	case <-c:
+	}
+	fmt.Println(222222222)
+}
+
+func demo(num chan int) {
+
+	num <- 12
+	//c := make(chan int, 1)
+	//cstop := make(chan struct{})
+	//select {
+	//case n, ok := <-cstop:
+	//	fmt.Println(n, ok)
+	//case num := <-c:
+	//	fmt.Println(num)
+	//}
 
 }
