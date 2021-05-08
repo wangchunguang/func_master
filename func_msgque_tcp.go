@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type tcpMsgQue struct {
@@ -17,59 +18,59 @@ type tcpMsgQue struct {
 	connecting int32 // 为true表示连接中
 }
 
-// 获取tcp类型
-func (t *tcpMsgQue) GetNetType() NetType {
+// GetNetType 获取tcp类型
+func (tcp *tcpMsgQue) GetNetType() NetType {
 	return NetTypeTcp
 
 }
 
-// 停止
-func (t *tcpMsgQue) Stop() {
+// Stop 停止
+func (tcp *tcpMsgQue) Stop() {
 	// 当stop为0 的时候
-	if atomic.CompareAndSwapInt32(&t.stop, 0, 1) {
+	if atomic.CompareAndSwapInt32(&tcp.stop, 0, 1) {
 		Go(func() {
-			if t.init {
-				t.handler.OnDelMsgQue(t)
-				if t.connecting == 1 {
-					t.available = false
+			if tcp.init {
+				tcp.handler.OnDelMsgQue(tcp)
+				if tcp.connecting == 1 {
+					tcp.available = false
 					return
 				}
 			}
-			t.available = false
-			t.baseStop()
-			if t.conn != nil {
-				t.conn.Close()
+			tcp.available = false
+			tcp.baseStop()
+			if tcp.conn != nil {
+				tcp.conn.Close()
 			}
-			if t.listener != nil {
-				t.listener.Close()
+			if tcp.listener != nil {
+				tcp.listener.Close()
 			}
 		})
 	}
 }
 
-func (t *tcpMsgQue) IsStop() bool {
-	if t.stop == 0 {
+func (tcp *tcpMsgQue) IsStop() bool {
+	if tcp.stop == 0 {
 		if IsStop() {
-			t.Stop()
+			tcp.Stop()
 		}
 	}
-	return t.stop == 1
+	return tcp.stop == 1
 }
 
-// 获取网络地址
-func (t *tcpMsgQue) LocalAddr() string {
-	if t.listener != nil {
-		return t.listener.Addr().String()
-	} else if t.conn != nil {
-		return t.conn.LocalAddr().String()
+// LocalAddr 获取网络地址
+func (tcp *tcpMsgQue) LocalAddr() string {
+	if tcp.listener != nil {
+		return tcp.listener.Addr().String()
+	} else if tcp.conn != nil {
+		return tcp.conn.LocalAddr().String()
 	}
 	return ""
 }
 
-// 删除网络地址
-func (t *tcpMsgQue) RemoteAddr() string {
-	if t.conn != nil {
-		return t.conn.RemoteAddr().String()
+// RemoteAddr 删除网络地址
+func (tcp *tcpMsgQue) RemoteAddr() string {
+	if tcp.conn != nil {
+		return tcp.conn.RemoteAddr().String()
 	}
 	return ""
 
@@ -121,30 +122,31 @@ func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Par
 	return &msgque
 }
 
-func (r *tcpMsgQue) read() {
-	r.wait.Add(1)
+func (tcp *tcpMsgQue) read() {
+	tcp.wait.Add(1)
 	defer func() {
-		r.wait.Done()
+		tcp.wait.Done()
 		if err := recover(); err != nil {
-			LogError("msgque read panic id:%v err:%v", r.id, err.(error))
+			LogError("msgque read panic id:%v err:%v", tcp.id, err.(error))
 			LogStack()
 		}
-		r.Stop()
+		tcp.Stop()
 	}()
-	r.readMsg()
+	tcp.readMsg()
 }
 
-func (r *tcpMsgQue) readMsg() {
-	// 设置信息头大小
+// 读取客户端的数据进行处理
+func (tcp *tcpMsgQue) readMsg() {
+	// 消息头数据
 	headData := make([]byte, MsgHeadSize)
 	var data []byte
 	var head *MessageHead
-	for !r.IsStop() {
+	for !tcp.IsStop() {
 		if head == nil {
-			_, err := io.ReadFull(r.conn, headData)
+			_, err := io.ReadFull(tcp.conn, headData)
 			if err != nil {
 				if err != io.EOF {
-					LogDebug("msgque:%v recv data err:%v", r.id, err)
+					LogDebug("msgque:%v recv data err:%v", tcp.id, err)
 				}
 				break
 			}
@@ -153,8 +155,8 @@ func (r *tcpMsgQue) readMsg() {
 				break
 			}
 			if head.Len == 0 {
-				if !r.processMsg(r, &Message{Head: head}) {
-					LogError("msgque:%v process msg cmd:%v act:%v", r.id, head.Cmd, head.Act)
+				if !tcp.processMsg(tcp, &Message{Head: head}) {
+					LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
 					break
 				}
 				head = nil
@@ -162,50 +164,74 @@ func (r *tcpMsgQue) readMsg() {
 				data = make([]byte, head.Len)
 			}
 		} else {
-			_, err := io.ReadFull(r.conn, data)
+			_, err := io.ReadFull(tcp.conn, data)
 			if err != nil {
-				LogError("msgque:%v recv data err:%v", r.id, err)
+				LogError("msgque:%v recv data err:%v", tcp.id, err)
 				break
 			}
-			if !r.processMsg(r, &Message{Head: head, Data: data}) {
-				LogError("msgque:%v process msg cmd:%v act:%v", r.id, head.Cmd, head.Act)
+			if !tcp.processMsg(tcp, &Message{Head: head, Data: data}) {
+				LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
 				break
 			}
 			head = nil
 			data = nil
 		}
-		r.lastTick = Timestamp
+		tcp.lastTick = Timestamp
 	}
 }
 
-func (r *tcpMsgQue) listen() {
+// 将数据传输到客户端
+func (tcp *tcpMsgQue) write() {
+	defer func() {
+		if err := recover(); err != nil {
+			LogError("msgque write panic id:%v err:%v", tcp.id, err.(error))
+			LogStack()
+		}
+		tcp.Stop()
+	}()
+	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
+	for !IsStop() {
+
+	}
+
+	tick.Stop()
+	tcp.Stop()
+}
+
+func (tcp *tcpMsgQue) listen() {
 	c := make(chan struct{})
 	Go2(func(cstop chan struct{}) {
 		select {
 		case <-cstop:
 		case <-c:
 		}
-		r.listener.Close()
+		tcp.listener.Close()
+
 	})
-	for !r.IsStop() {
-		accept, err := r.listener.Accept()
+	for !tcp.IsStop() {
+		accept, err := tcp.listener.Accept()
 		if err != nil {
-			if stop == 0 && r.stop == 0 {
-				LogInfo("Message acceptance failed msgque :%v  err :%s", r.id, err)
+			if stop == 0 && tcp.stop == 0 {
+				LogInfo("Message acceptance failed msgque :%v  err :%s", tcp.id, err)
 			}
 			break
 		} else {
 			Go(func() {
 				// 初始化tcp接收
-				msgque := newTcpAccept(accept, r.msgTyp, r.handler, r.parserFactory)
+				msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 				// 设置是否加密
-				msgque.SetEncrypt(r.GetEncrypt())
-				if r.handler.OnNewMsgQue(msgque) {
+				msgque.SetEncrypt(tcp.GetEncrypt())
+				if tcp.handler.OnNewMsgQue(msgque) {
 					msgque.init = true
 					msgque.available = true
 					Go(func() {
 						LogInfo("process read for msgque:%d", msgque.id)
 						msgque.read()
+						LogInfo("process read end for msgque:%d", msgque.id)
+					})
+					Go(func() {
+						LogInfo("process read for msgque:%d", msgque.id)
+						msgque.write()
 						LogInfo("process read end for msgque:%d", msgque.id)
 					})
 				} else {
@@ -215,5 +241,5 @@ func (r *tcpMsgQue) listen() {
 		}
 	}
 	close(c)
-	r.Stop()
+	tcp.Stop()
 }

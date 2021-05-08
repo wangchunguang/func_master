@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// addr ip地址
+// StartServer addr ip地址
 // typ  基于确定的消息头
 // IMsgHandler 消息处理程序的接口
 // parser 解析器

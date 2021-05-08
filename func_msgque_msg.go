@@ -19,7 +19,7 @@ const (
 	FlagNoParse  = 1 << 7 //消息不解析
 )
 
-// 消息的最大值
+// MaxMsgDataSize 消息的最大值
 var MaxMsgDataSize uint32 = 1024 * 1024
 
 const (

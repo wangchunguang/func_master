@@ -147,16 +147,10 @@ func TestGetStatis(t *testing.T) {
 	fmt.Println(222222222)
 }
 
-func demo(num chan int) {
-
-	num <- 12
-	//c := make(chan int, 1)
-	//cstop := make(chan struct{})
-	//select {
-	//case n, ok := <-cstop:
-	//	fmt.Println(n, ok)
-	//case num := <-c:
-	//	fmt.Println(num)
-	//}
+func TestWalkDir(t *testing.T) {
+	tick := time.NewTimer(time.Second * time.Duration(1))
+	fmt.Println("当前时间为111111111111:", time.Now())
+	c := <-tick.C
+	fmt.Println("当前时间为22222222222:", c)
 
 }
