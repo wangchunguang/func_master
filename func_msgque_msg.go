@@ -39,42 +39,55 @@ type MessageHead struct {
 
 }
 
-func (r *MessageHead) Copy() *MessageHead {
-	if r == nil {
+func (mh *MessageHead) FastBytes(data []byte) []byte {
+	phead := (*MessageHead)(unsafe.Pointer(&data[0]))
+	phead.Len = mh.Len
+	phead.Error = mh.Error
+	phead.Cmd = mh.Cmd
+	phead.Act = mh.Act
+	phead.Index = mh.Index
+	phead.Flags = mh.Flags
+	phead.Bcc = mh.Bcc
+	return data
+
+}
+
+func (mh *MessageHead) Copy() *MessageHead {
+	if mh == nil {
 		return nil
 	}
 	head := &MessageHead{
-		Len:     r.Len,
-		Error:   r.Error,
-		Cmd:     r.Cmd,
-		Act:     r.Act,
-		Index:   r.Index,
-		Flags:   r.Flags,
-		Bcc:     r.Bcc,
-		forever: r.forever,
+		Len:     mh.Len,
+		Error:   mh.Error,
+		Cmd:     mh.Cmd,
+		Act:     mh.Act,
+		Index:   mh.Index,
+		Flags:   mh.Flags,
+		Bcc:     mh.Bcc,
+		forever: mh.forever,
 	}
 	return head
 }
 
-func (r *MessageHead) Bytes() []byte {
+func (mh *MessageHead) Bytes() []byte {
 	buf := &bytes.Buffer{}
-	err := binary.Write(buf, binary.BigEndian, r)
+	err := binary.Write(buf, binary.BigEndian, mh)
 	if err != nil {
 		panic(err)
 	}
 	return buf.Bytes()
 }
 
-func (r *MessageHead) Tag() int {
-	return Tag(r.Cmd, r.Act, r.Index)
+func (mh *MessageHead) Tag() int {
+	return Tag(mh.Cmd, mh.Act, mh.Index)
 }
 
-func (r *MessageHead) CmdAct() int {
-	return CmdAct(r.Cmd, r.Act)
+func (mh *MessageHead) CmdAct() int {
+	return CmdAct(mh.Cmd, mh.Act)
 }
 
-func (r *MessageHead) String() string {
-	return fmt.Sprintf("Len:%v Error:%v Cmd:%v Act:%v Index:%v Flags:%v", r.Len, r.Error, r.Cmd, r.Act, r.Index, r.Flags)
+func (mh *MessageHead) String() string {
+	return fmt.Sprintf("Len:%v Error:%v Cmd:%v Act:%v Index:%v Flags:%v", mh.Len, mh.Error, mh.Cmd, mh.Act, mh.Index, mh.Flags)
 }
 
 // 解析请求头
@@ -94,97 +107,97 @@ type Message struct {
 	User       interface{}  //用户自定义数据
 }
 
-func (r *Message) Copy() *Message {
+func (m *Message) Copy() *Message {
 	msg := &Message{
-		Head:       r.Head.Copy(),
-		Data:       r.Data,
-		IMsgParser: r.IMsgParser,
+		Head:       m.Head.Copy(),
+		Data:       m.Data,
+		IMsgParser: m.IMsgParser,
 	}
-	id := len(r.Data)
+	id := len(m.Data)
 	if id > 0 {
 		msg.Data = make([]byte, id)
-		copy(msg.Data, r.Data)
+		copy(msg.Data, m.Data)
 	}
 	return msg
 }
 
-func (r *Message) Len() uint32 {
-	if r.Head != nil {
-		return r.Head.Len
+func (m *Message) Len() uint32 {
+	if m.Head != nil {
+		return m.Head.Len
 	}
 	return 0
 }
 
-func (r *Message) Error() uint16 {
-	if r.Head != nil {
-		return r.Head.Error
+func (m *Message) Error() uint16 {
+	if m.Head != nil {
+		return m.Head.Error
 	}
 	return 0
 }
 
-func (r *Message) Tag() int {
-	if r.Head != nil {
-		return Tag(r.Head.Cmd, r.Head.Act, r.Head.Index)
+func (m *Message) Tag() int {
+	if m.Head != nil {
+		return Tag(m.Head.Cmd, m.Head.Act, m.Head.Index)
 	}
 	return 0
 }
 
-func (r *Message) CmdAct() int {
-	if r.Head != nil {
-		return CmdAct(r.Head.Cmd, r.Head.Act)
+func (m *Message) CmdAct() int {
+	if m.Head != nil {
+		return CmdAct(m.Head.Cmd, m.Head.Act)
 	}
 	return 0
 }
 
-func (r *Message) Cmd() uint8 {
-	if r.Head != nil {
-		return r.Head.Cmd
+func (m *Message) Cmd() uint8 {
+	if m.Head != nil {
+		return m.Head.Cmd
 	}
 	return 0
 }
 
-func (r *Message) Act() uint8 {
-	if r.Head != nil {
-		return r.Head.Act
+func (m *Message) Act() uint8 {
+	if m.Head != nil {
+		return m.Head.Act
 	}
 	return 0
 }
 
-func (r *Message) Index() uint16 {
-	if r.Head != nil {
-		return r.Head.Index
+func (m *Message) Index() uint16 {
+	if m.Head != nil {
+		return m.Head.Index
 	}
 	return 0
 }
 
-func (r *Message) Flags() uint8 {
-	if r.Head != nil {
-		return r.Head.Flags
+func (m *Message) Flags() uint8 {
+	if m.Head != nil {
+		return m.Head.Flags
 	}
 	return 0
 }
 
-func (r *Message) Bcc() uint8 {
-	if r.Head != nil {
-		return r.Head.Bcc
+func (m *Message) Bcc() uint8 {
+	if m.Head != nil {
+		return m.Head.Bcc
 	}
 	return 0
 }
 
-func (r *Message) Bytes() []byte {
-	if r.Head != nil && r.Data == nil {
-		return r.Head.Bytes()
+func (m *Message) Bytes() []byte {
+	if m.Head != nil && m.Data == nil {
+		return m.Head.Bytes()
 	}
-	return r.Data
+	return m.Data
 }
 
-func (r *Message) CopyTag(old *Message) *Message {
-	if r.Head != nil && old.Head != nil {
-		r.Head.Cmd = old.Head.Cmd
-		r.Head.Act = old.Head.Act
-		r.Head.Index = old.Head.Index
+func (m *Message) CopyTag(old *Message) *Message {
+	if m.Head != nil && old.Head != nil {
+		m.Head.Cmd = old.Head.Cmd
+		m.Head.Act = old.Head.Act
+		m.Head.Index = old.Head.Index
 	}
-	return r
+	return m
 }
 
 func NewErrMsg(err error) *Message {

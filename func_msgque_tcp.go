@@ -183,19 +183,116 @@ func (tcp *tcpMsgQue) readMsg() {
 // 将数据传输到客户端
 func (tcp *tcpMsgQue) write() {
 	defer func() {
+		tcp.wait.Done()
 		if err := recover(); err != nil {
 			LogError("msgque write panic id:%v err:%v", tcp.id, err.(error))
 			LogStack()
 		}
 		tcp.Stop()
 	}()
-	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
-	for !IsStop() {
-
+	tcp.wait.Add(1)
+	// 是否快速发送
+	if tcp.sendFast {
+		//没有消息头
+		tcp.writeMsgFast()
+	} else {
+		tcp.writeMsg()
 	}
 
+}
+
+func (tcp *tcpMsgQue) writeMsgFast() {
+	var m *Message
+	var data []byte
+	writeCount := 0
+	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
+	for !tcp.IsStop() || m != nil {
+		if m == nil {
+			// 当stopChanForGo 没有被关闭，或者100秒以内没有接受到数据，就会进行关闭
+			select {
+			case <-stopChanForGo:
+			case m = <-tcp.cwrite:
+				if m != nil {
+					data = m.Data
+				}
+			case <-tick.C:
+				if tcp.isTimeout(tick) {
+					tcp.Stop()
+				}
+			}
+		}
+		if m == nil {
+			continue
+		}
+		if writeCount < len(data) {
+			write, err := tcp.conn.Write(data[writeCount:])
+			if err != nil {
+				LogError("msgque write id:%v err:%v", tcp.id, err)
+				break
+			}
+			writeCount += write
+		}
+		if writeCount == len(data) {
+			writeCount = 0
+			m = nil
+		}
+		tcp.lastTick = Timestamp
+	}
 	tick.Stop()
+}
+
+func (tcp *tcpMsgQue) writeMsg() {
+	var m *Message
+	hand := make([]byte, MsgHeadSize)
+	writeCount := 0
+	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
+	for !IsStop() || m != nil {
+		if m == nil {
+			select {
+			case <-stopChanForGo:
+			case m = <-tcp.cwrite:
+				if m != nil {
+					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 && m.Head.Act != 0 {
+						m = m.Copy()
+						m.Head.Flags |= FlagEncrypt
+						tcp.oseed = tcp.oseed*cryptA + cryptB
+						m.Head.Bcc = CountBCC(m.Data, 0, m.Head.Len)
+						m.Data = DefaultNetEncrypt(tcp.oseed, m.Data, 0, m.Head.Len)
+					}
+					m.Head.FastBytes(hand)
+				}
+			case <-tick.C:
+				if tcp.isTimeout(tick) {
+					break
+				}
+			}
+		}
+		if m == nil {
+			continue
+		}
+		if writeCount < MsgHeadSize {
+			write, err := tcp.conn.Write(hand[writeCount:])
+			if err != nil {
+				LogError("msgque write id:%v err:%v", tcp.id, err)
+				break
+			}
+			writeCount += write
+		}
+		if writeCount >= MsgHeadSize && m.Data != nil {
+			write, err := tcp.conn.Write(m.Data[writeCount-MsgHeadSize : int(m.Head.Len)])
+			if err != nil {
+				LogError("msgque write id:%v err:%v", tcp.id, err)
+				break
+			}
+			writeCount += write
+		}
+		if writeCount == int(m.Head.Len)+MsgHeadSize {
+			writeCount = 0
+			m = nil
+		}
+	}
 	tcp.Stop()
+
 }
 
 func (tcp *tcpMsgQue) listen() {

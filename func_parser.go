@@ -11,7 +11,7 @@ type IMsgParser interface {
 	S2CString() string
 }
 
-// 消息解析器
+// MsgParser 消息解析器
 type MsgParser struct {
 	s2c     interface{}
 	c2s     interface{}
@@ -20,34 +20,34 @@ type MsgParser struct {
 	parser  IParser
 }
 
-func (r *MsgParser) C2S() interface{} {
-	if r.c2s == nil && r.c2sFunc != nil {
-		r.c2s = r.c2sFunc
+func (mp *MsgParser) C2S() interface{} {
+	if mp.c2s == nil && mp.c2sFunc != nil {
+		mp.c2s = mp.c2sFunc
 	}
-	return r.c2s
+	return mp.c2s
 }
 
-func (r *MsgParser) S2C() interface{} {
-	if r.s2c == nil && r.s2cFunc != nil {
-		r.s2c = r.s2cFunc
+func (mp *MsgParser) S2C() interface{} {
+	if mp.s2c == nil && mp.s2cFunc != nil {
+		mp.s2c = mp.s2cFunc
 	}
-	return r.s2c
+	return mp.s2c
 }
 
-func (r *MsgParser) C2SData() []byte {
-	return r.parser.PackMsg(r.C2S())
+func (mp *MsgParser) C2SData() []byte {
+	return mp.parser.PackMsg(mp.C2S())
 }
 
-func (r *MsgParser) S2CData() []byte {
-	return r.parser.PackMsg(r.S2C())
+func (mp *MsgParser) S2CData() []byte {
+	return mp.parser.PackMsg(mp.S2C())
 }
 
-func (r *MsgParser) C2SString() string {
-	return string(r.C2SData())
+func (mp *MsgParser) C2SString() string {
+	return string(mp.C2SData())
 }
 
-func (r *MsgParser) S2CString() string {
-	return string(r.S2CData())
+func (mp *MsgParser) S2CString() string {
+	return string(mp.S2CData())
 }
 
 type ParserType int

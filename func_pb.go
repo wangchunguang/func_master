@@ -7,35 +7,35 @@ import (
 
 type PBModel struct{}
 
-func (p *PBModel) DBData(v proto.Message) []byte {
+func (pb *PBModel) DBData(v proto.Message) []byte {
 	return DBData(v)
 }
 
-func (p *PBModel) DBStr(v proto.Message) string {
+func (pb *PBModel) DBStr(v proto.Message) string {
 	return DBStr(v)
 }
 
-func (p *PBModel) PbData(v proto.Message) []byte {
+func (pb *PBModel) PbData(v proto.Message) []byte {
 	return PBData(v)
 }
 
-func (p *PBModel) PbStr(v proto.Message) string {
+func (pb *PBModel) PbStr(v proto.Message) string {
 	return PBStr(v)
 }
 
-func (p *PBModel) ParseDBData(data []byte, v proto.Message) bool {
+func (pb *PBModel) ParseDBData(data []byte, v proto.Message) bool {
 	return ParseDBData(data, v)
 }
 
-func (p *PBModel) ParseDBStr(str string, v proto.Message) bool {
+func (pb *PBModel) ParseDBStr(str string, v proto.Message) bool {
 	return ParseDBStr(str, v)
 }
 
-func (p *PBModel) ParsePbData(data []byte, v proto.Message) bool {
+func (pb *PBModel) ParsePbData(data []byte, v proto.Message) bool {
 	return ParsePbData(data, v)
 }
 
-func (p *PBModel) ParsePbStr(str string, v proto.Message) bool {
+func (pb *PBModel) ParsePbStr(str string, v proto.Message) bool {
 	return ParsePbStr(str, v)
 }
 

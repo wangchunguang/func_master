@@ -106,7 +106,7 @@ func HttpPostTimeOut(url string, application string, data []byte) (string, error
 	return string(all), nil, response
 }
 
-// http get设置超时请求
+// HttpGetTimeOut http get设置超时请求
 func HttpGetTimeOut(url string) (string, error, *http.Response) {
 	if len(url) == 0 {
 		return "", ErrHttpUrlNil, nil
@@ -129,7 +129,7 @@ func HttpGetTimeOut(url string) (string, error, *http.Response) {
 	return string(all), nil, response
 }
 
-// 上传文件
+// HttpUpload 上传文件
 func HttpUpload(url, field, file string) (*http.Response, error) {
 	var lock sync.RWMutex
 	lock.Lock()
@@ -164,7 +164,7 @@ func HttpUpload(url, field, file string) (*http.Response, error) {
 	return resp, nil
 }
 
-// 下载文件
+// HttpDownload 下载文件
 func HttpDownload(url, file string) error {
 	response, err := http.Get(url)
 	defer response.Body.Close()
@@ -199,4 +199,3 @@ func SendMail(user, password, host, to, subject, body, mailtype string) error {
 	err := smtp.SendMail(host, auth, user, send_to, msg)
 	return err
 }
-

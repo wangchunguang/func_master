@@ -140,11 +140,10 @@ func TestSetTimeout(t *testing.T) {
 }
 
 func TestGetStatis(t *testing.T) {
-	c := make(chan int)
-	select {
-	case <-c:
-	}
-	fmt.Println(222222222)
+
+	var num uint8
+	num |= FlagEncrypt
+	fmt.Println(num)
 }
 
 func TestWalkDir(t *testing.T) {
@@ -153,4 +152,26 @@ func TestWalkDir(t *testing.T) {
 	c := <-tick.C
 	fmt.Println("当前时间为22222222222:", c)
 
+}
+
+func TestWaitForSystemExit2(t *testing.T) {
+	c := make(chan int)
+	go demo(c)
+	tick := time.NewTimer(time.Second * 5)
+	select {
+	case <-stopChanForGo:
+		fmt.Println(111111111)
+	case n := <-c:
+		fmt.Println(n)
+	case <-tick.C:
+		fmt.Println(8888888888)
+
+	}
+	fmt.Println(20000000)
+
+}
+
+func demo(num chan int) {
+	time.Sleep(time.Second * 10)
+	num <- 100
 }

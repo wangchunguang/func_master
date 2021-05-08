@@ -96,42 +96,42 @@ type msgQue struct {
 }
 
 // 设置是否快速发送
-func (r *msgQue) SetSendFast() {
-	r.sendFast = true
+func (mq *msgQue) SetSendFast() {
+	mq.sendFast = true
 }
 
 // 返回通道的id
-func (r *msgQue) Id() uint32 {
-	return r.id
+func (mq *msgQue) Id() uint32 {
+	return mq.id
 }
 
 // 消息头，
-func (r *msgQue) GetMsgType() MsgType {
-	return r.msgTyp
+func (mq *msgQue) GetMsgType() MsgType {
+	return mq.msgTyp
 }
 
 // 获取是否加密
-func (r *msgQue) GetEncrypt() bool {
-	return r.encrypt
+func (mq *msgQue) GetEncrypt() bool {
+	return mq.encrypt
 }
 
 // 返回通道类型
-func (r *msgQue) GetConnType() ConnType {
-	return r.connTyp
+func (mq *msgQue) GetConnType() ConnType {
+	return mq.connTyp
 }
 
 // 是否停止
-func (r *msgQue) Available() bool {
-	return r.available
+func (mq *msgQue) Available() bool {
+	return mq.available
 }
 
 // 发送
-func (r *msgQue) Send(m *Message) (re bool) {
-	if m == nil || r.Available() {
+func (mq *msgQue) Send(m *Message) (re bool) {
+	if m == nil || mq.Available() {
 		return
 	}
 	// 如果写入里面的长度 大于设置的长度，直接返回
-	if len(r.cwrite) > cwrite_chan_len-1 {
+	if len(mq.cwrite) > cwrite_chan_len-1 {
 		return
 	}
 	defer func() {
@@ -139,35 +139,35 @@ func (r *msgQue) Send(m *Message) (re bool) {
 			re = false
 		}
 	}()
-	r.cwrite <- m
+	mq.cwrite <- m
 	return true
 }
 
 // 向里面添加数据
-func (r *msgQue) SendString(str string) (re bool) {
-	return r.Send(&Message{Data: []byte(str)})
+func (mq *msgQue) SendString(str string) (re bool) {
+	return mq.Send(&Message{Data: []byte(str)})
 }
 
-func (r *msgQue) SendStringLn(str string) (re bool) {
-	return r.SendString(str + "\n")
+func (mq *msgQue) SendStringLn(str string) (re bool) {
+	return mq.SendString(str + "\n")
 
 }
 
-func (r *msgQue) SendByteStr(str []byte) (re bool) {
-	return r.SendString(string(str))
+func (mq *msgQue) SendByteStr(str []byte) (re bool) {
+	return mq.SendString(string(str))
 }
 
-func (r *msgQue) SendByteStrLn(str []byte) (re bool) {
-	return r.SendString(string(str) + "\n")
+func (mq *msgQue) SendByteStrLn(str []byte) (re bool) {
+	return mq.SendString(string(str) + "\n")
 }
 
-func (r *msgQue) SendCallback(m *Message, c chan *Message) (re bool) {
+func (mq *msgQue) SendCallback(m *Message, c chan *Message) (re bool) {
 	if c == nil || cap(c) < 1 {
 		LogError("try send callback but chan is null or no buffer")
 		return
 	}
-	if r.Send(m) {
-		r.setCallback(m.Tag(), c)
+	if mq.Send(m) {
+		mq.setCallback(m.Tag(), c)
 	} else {
 		c <- nil
 		return
@@ -176,19 +176,19 @@ func (r *msgQue) SendCallback(m *Message, c chan *Message) (re bool) {
 }
 
 // 设置回调
-func (r *msgQue) setCallback(tag int, c chan *Message) {
-	r.callbackLock.Lock()
+func (mq *msgQue) setCallback(tag int, c chan *Message) {
+	mq.callbackLock.Lock()
 	defer func() {
 		if err := recover(); err != nil {
 			LogError("msgQue setCallback failure")
 		}
-		r.callback[tag] = c
-		r.callbackLock.Unlock()
+		mq.callback[tag] = c
+		mq.callbackLock.Unlock()
 	}()
-	if r.callback == nil {
-		r.callback = make(map[int]chan *Message)
+	if mq.callback == nil {
+		mq.callback = make(map[int]chan *Message)
 	}
-	oc, ok := r.callback[tag]
+	oc, ok := mq.callback[tag]
 	if ok {
 		oc <- nil
 	}
@@ -196,67 +196,67 @@ func (r *msgQue) setCallback(tag int, c chan *Message) {
 }
 
 // 设置超时
-func (r *msgQue) SetTimeout(t int) {
+func (mq *msgQue) SetTimeout(t int) {
 	if t > 0 {
-		r.timeout = t
+		mq.timeout = t
 	}
 }
 
 // 查询超时
-func (r *msgQue) GetTimeout() int {
-	return r.timeout
+func (mq *msgQue) GetTimeout() int {
+	return mq.timeout
 }
 
 // 是否超时
-func (r *msgQue) isTimeout(tick *time.Timer) bool {
-	left := int(Timestamp - r.lastTick)
-	if left < r.timeout || r.timeout == 0 {
-		if r.timeout == 0 {
+func (mq *msgQue) isTimeout(tick *time.Timer) bool {
+	left := int(Timestamp - mq.lastTick)
+	if left < mq.timeout || mq.timeout == 0 {
+		if mq.timeout == 0 {
 			tick.Reset(time.Second * time.Duration(DefMsgQueTimeout))
 		} else {
-			tick.Reset(time.Second * time.Duration(r.timeout-left))
+			tick.Reset(time.Second * time.Duration(mq.timeout-left))
 		}
 		return false
 	}
-	LogInfo("msgque close because timeout id:%v wait:%v timeout:%v", r.id, left, r.timeout)
+	LogInfo("msgque close because timeout id:%v wait:%v timeout:%v", mq.id, left, mq.timeout)
 	return true
 }
 
-func (r *msgQue) Reconnect(t int) {
+func (mq *msgQue) Reconnect(t int) {
 
 }
 
 // 处理消息程序
-func (r *msgQue) GetHandler() IMsgHandler {
-	return r.handler
+func (mq *msgQue) GetHandler() IMsgHandler {
+	return mq.handler
 }
 
 // 新增用户
-func (r *msgQue) SetUser(user interface{}) {
-	r.user = user
+func (mq *msgQue) SetUser(user interface{}) {
+	mq.user = user
 }
 
 // 获取用户
-func (r *msgQue) GetUser() interface{} {
-	return r.user
+func (mq *msgQue) GetUser() interface{} {
+	return mq.user
 }
 
 // 尝试回拨
-func (r *msgQue) tryCallback(msg *Message) (re bool) {
-	if r.callback == nil {
+func (mq *msgQue) tryCallback(msg *Message) (re bool) {
+	if mq.callback == nil {
 		return false
 	}
 	defer func() {
 		if err := recover(); err != nil {
 			LogError(err)
 		}
-		r.callbackLock.Unlock()
+		mq.callbackLock.Unlock()
 	}()
-	r.callbackLock.Lock()
-	if r.callback != nil {
+	mq.callbackLock.Lock()
+	if mq.callback != nil {
 		tag := msg.Tag()
-		if c, ok := r.callback[tag]; ok {
-			delete(r.callback, tag)
+		if c, ok := mq.callback[tag]; ok {
+			delete(mq.callback, tag)
 			c <- msg
 			re = true
 		}
@@ -264,53 +264,53 @@ func (r *msgQue) tryCallback(msg *Message) (re bool) {
 	return
 }
 
-func (r *msgQue) baseStop() {
-	if r.cwrite != nil {
-		close(r.cwrite)
+func (mq *msgQue) baseStop() {
+	if mq.cwrite != nil {
+		close(mq.cwrite)
 	}
-	for k, v := range r.callback {
+	for k, v := range mq.callback {
 		v <- nil
-		delete(r.callback, k)
+		delete(mq.callback, k)
 	}
 	msgqueMapSync.Lock()
-	delete(msgqueMap, r.id)
+	delete(msgqueMap, mq.id)
 	msgqueMapSync.Unlock()
 }
 
 // 设置加密
-func (r *msgQue) SetEncrypt(e bool) {
-	r.encrypt = e
-	if e && r.connTyp == ConnTypeAccept {
-		r.oseed = uint32(Timestamp)
-		r.iseed = uint32(Timestamp) + uint32(RandNumber(99999))
+func (mq *msgQue) SetEncrypt(e bool) {
+	mq.encrypt = e
+	if e && mq.connTyp == ConnTypeAccept {
+		mq.oseed = uint32(Timestamp)
+		mq.iseed = uint32(Timestamp) + uint32(RandNumber(99999))
 		data := make([]byte, 8)
-		binary.BigEndian.PutUint32(data, r.iseed)
-		binary.BigEndian.PutUint32(data[4:], r.oseed)
+		binary.BigEndian.PutUint32(data, mq.iseed)
+		binary.BigEndian.PutUint32(data[4:], mq.oseed)
 		msg := NewMsg(0, 0, 0, 0, data)
 		//  将加密种子传给客户端
-		r.cwrite <- msg
+		mq.cwrite <- msg
 	}
 }
 
 // 处理消息
-func (r *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
-	if r.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
+func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
+	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
 		if len(msg.Data) != 8 {
 			LogWarn("init seed msg err")
 			return false
 		}
-		r.encrypt = true
-		r.oseed = binary.BigEndian.Uint32(msg.Data[:4])
-		r.iseed = binary.BigEndian.Uint32(msg.Data[4:])
+		mq.encrypt = true
+		mq.oseed = binary.BigEndian.Uint32(msg.Data[:4])
+		mq.iseed = binary.BigEndian.Uint32(msg.Data[4:])
 		return true
 	}
 	// 数据经过加密的
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
-		r.iseed = r.iseed*cryptA + cryptB
-		msg.Data = DefaultNetDecrypt(r.iseed, msg.Data, 0, msg.Head.Len)
+		mq.iseed = mq.iseed*cryptA + cryptB
+		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
 		bcc := CountBCC(msg.Data, 0, msg.Head.Len)
 		if msg.Head.Bcc != bcc {
-			LogWarn("client bcc err conn:%d", r.id)
+			LogWarn("client bcc err conn:%d", mq.id)
 			return false
 		}
 	}
@@ -324,29 +324,29 @@ func (r *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		msg.Data = data
 		msg.Head.Len = uint32(len(msg.Data))
 	}
-	if r.parser != nil {
-		mp, err := r.parser.ParseC2S(msg)
+	if mq.parser != nil {
+		mp, err := mq.parser.ParseC2S(msg)
 
 		if err == nil {
 			msg.IMsgParser = mp
 		} else {
-			if r.parser.GetErrType() == ParseErrTypeSendRemind {
+			if mq.parser.GetErrType() == ParseErrTypeSendRemind {
 				//机器人作为客户端时，不能全部注册消息，但不能断开连接
-				if r.connTyp == ConnTypeConn {
+				if mq.connTyp == ConnTypeConn {
 					return true
 				}
 
 				return false
-			} else if r.parser.GetErrType() == ParseErrTypeClose {
+			} else if mq.parser.GetErrType() == ParseErrTypeClose {
 				return false
-			} else if r.parser.GetErrType() == ParseErrTypeContinue {
+			} else if mq.parser.GetErrType() == ParseErrTypeContinue {
 				return true
 			}
 		}
 	}
-	f := r.handler.GetHandlerFunc(msgque, msg)
+	f := mq.handler.GetHandlerFunc(msgque, msg)
 	if f == nil {
-		f = r.handler.OnProcessMsg
+		f = mq.handler.OnProcessMsg
 	}
 	return f(msgque, msg)
 
