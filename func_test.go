@@ -172,6 +172,31 @@ func TestWaitForSystemExit2(t *testing.T) {
 }
 
 func demo(num chan int) {
-	time.Sleep(time.Second * 10)
-	num <- 100
+	time.Sleep(5 * time.Second)
+	close(num)
+}
+
+func TestLogError(t *testing.T) {
+	ch := make(chan int)
+	go demo(ch)
+	for i := range ch {
+		fmt.Println(i)
+	}
+	fmt.Println(222222)
+}
+
+func TestEtcd(t *testing.T) {
+	var endpoints = []string{"localhost:2379"}
+	ser, err := NewServiceRegister(endpoints, "/web/nodel", "localhost:8000", 5)
+	if err != nil {
+		LogError(err)
+		return
+	}
+	go ser.ListenLeaseRespChan()
+
+	select {
+	// case <-time.After(20 * time.Second):
+	// 	ser.Close()
+	}
+
 }

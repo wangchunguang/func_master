@@ -18,7 +18,7 @@ func DBStr(v proto.Message) string {
 	if data, err := msgpack.Marshal(v); err == nil {
 		return string(data)
 	} else {
-		LogError("msgpack :%s dbstring failed :%s", v, err.Error())
+		LogError("msgpack :%v dbstring failed :%s", v, err.Error())
 		return ""
 	}
 }

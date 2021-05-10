@@ -71,6 +71,7 @@ func Md5File(path string) string {
 	return MD5Bytes(file)
 }
 
+// WaitForSystemExit 等待系统退出
 func WaitForSystemExit(atexit ...func()) {
 	statis.StartTime = time.Now()
 	signal.Notify(stopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)

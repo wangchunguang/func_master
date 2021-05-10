@@ -23,7 +23,8 @@ var (
 	goid        uint32
 	stop        int32 //停止标志
 	poolGoCount int32
-	msgqueId    uint32 //消息队列id
+	msgqueId    uint32     //消息队列id
+	etcdTimeout uint32 = 5 // 出则etcd的超时时间
 )
 
 var (
