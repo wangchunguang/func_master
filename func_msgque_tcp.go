@@ -165,6 +165,7 @@ func (tcp *tcpMsgQue) readMsg() {
 			}
 		} else {
 			_, err := io.ReadFull(tcp.conn, data)
+
 			if err != nil {
 				LogError("msgque:%v recv data err:%v", tcp.id, err)
 				break
