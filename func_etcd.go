@@ -2,9 +2,9 @@ package func_master
 
 import (
 	"context"
-	mvccpb2 "github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+
 	"sync"
 	"time"
 )
@@ -133,10 +133,10 @@ func (sd *ServiceDiscovery) watcher(prefix string) {
 		for _, resp := range wresp.Events {
 			// 返回的数据为两种，put表示新增进去，delete表示删除
 			switch resp.Type {
-			case mvccpb2.Event_EventType(mvccpb.PUT): // 修改或者新增
+			case mvccpb.PUT: // 修改或者新增
 				LogInfo("put key =%s", resp.Kv.Key)
 				sd.setServiceList(string(resp.Kv.Key), string(resp.Kv.Value))
-			case mvccpb2.Event_EventType(mvccpb.PUT): // 删除操作
+			case mvccpb.DELETE: // 删除操作
 				LogInfo("Delete key =%s", resp.Kv.Key)
 				sd.delServiceList(string(resp.Kv.Key))
 			}
