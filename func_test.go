@@ -3,6 +3,7 @@ package func_master
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"reflect"
@@ -185,7 +186,8 @@ func TestLogError(t *testing.T) {
 	fmt.Println(222222)
 }
 
-func TestEtcd(t *testing.T) {
+//服务注册
+func TestEtcd_server(t *testing.T) {
 	var endpoints = []string{"localhost:2379"}
 	ser, err := NewServiceRegister(endpoints, "/web/nodel", "localhost:8000", 5)
 	if err != nil {
@@ -197,6 +199,25 @@ func TestEtcd(t *testing.T) {
 	select {
 	// case <-time.After(20 * time.Second):
 	// 	ser.Close()
+	}
+
+}
+
+//服务发现
+func TestEtcd_service(t *testing.T) {
+	var endpoints = []string{"localhost:2379"}
+	ser, err := NewServiceDiscovery(endpoints)
+	if err != nil {
+		return
+	}
+	defer ser.Close()
+	ser.WatchService("/web/")
+	ser.WatchService("/grpc/")
+	for {
+		select {
+		case <-time.Tick(10 * time.Second):
+			log.Println(ser.loadListServiceList())
+		}
 	}
 
 }

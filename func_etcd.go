@@ -2,7 +2,9 @@ package func_master
 
 import (
 	"context"
+	mvccpb2 "github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/mvcc/mvccpb"
 	"sync"
 	"time"
 )
@@ -85,12 +87,91 @@ func (s *ServiceRegister) Close() error {
 
 // ServiceDiscovery 服务发现
 type ServiceDiscovery struct {
-	cli        *clientv3.Client  // etcd client
-	serverList map[string]string // 服务列表
-	lock       sync.Mutex
+	cli        *clientv3.Client // etcd client
+	serverList sync.Map         // 服务列表
 }
 
 // NewServiceDiscovery 新建发现服务
-func NewServiceDiscovery(endpoints []string) *ServiceDiscovery {
+func NewServiceDiscovery(endpoints []string) (*ServiceDiscovery, error) {
+	client, err := clientv3.New(clientv3.Config{
+		Endpoints:   endpoints,
+		DialTimeout: time.Duration(etcdTimeout) * time.Second,
+	})
+	if err != nil {
+		LogError("Service discovery failed err :%s", err)
+		return nil, err
+	}
 
+	ser := &ServiceDiscovery{
+		cli: client,
+	}
+	return ser, nil
+}
+
+// WatchService 监视和初始化服务器列表
+func (sd *ServiceDiscovery) WatchService(prefix string) error {
+	//	根据前缀获取现有的key
+	response, err := sd.cli.Get(context.Background(), prefix, clientv3.WithPrefix())
+	if err != nil {
+		LogError("Get data error err :%s", err)
+		return err
+	}
+	for _, kv := range response.Kvs {
+		sd.serverList.Store(kv.Key, kv.Value)
+	}
+	//	监听前缀，表示是否随时进行修改
+	go sd.watcher(prefix)
+	return nil
+
+}
+
+// 监听前缀
+func (sd *ServiceDiscovery) watcher(prefix string) {
+	// 发布监听请求，等待新的通道
+	watch := sd.cli.Watch(context.Background(), prefix, clientv3.WithPrefix())
+	for wresp := range watch {
+		for _, resp := range wresp.Events {
+			// 返回的数据为两种，put表示新增进去，delete表示删除
+			switch resp.Type {
+			case mvccpb2.Event_EventType(mvccpb.PUT): // 修改或者新增
+				LogInfo("put key =%s", resp.Kv.Key)
+				sd.setServiceList(string(resp.Kv.Key), string(resp.Kv.Value))
+			case mvccpb2.Event_EventType(mvccpb.PUT): // 删除操作
+				LogInfo("Delete key =%s", resp.Kv.Key)
+				sd.delServiceList(string(resp.Kv.Key))
+			}
+		}
+	}
+}
+
+// 新增服务地址
+func (sd *ServiceDiscovery) setServiceList(key, value string) {
+	sd.serverList.Store(key, value)
+}
+
+// 删除服务操作
+func (sd *ServiceDiscovery) delServiceList(key string) {
+	sd.serverList.Delete(key)
+}
+
+// 读取操作单个服务器地址
+func (sd *ServiceDiscovery) loadServiceList(key string) string {
+	value, _ := sd.serverList.Load(key)
+	return value.(string)
+}
+
+// 读取所有服务器地址
+func (sd *ServiceDiscovery) loadListServiceList() []string {
+	arr := make([]string, 0)
+	f := func(key, value interface{}) bool {
+		arr = append(arr, value.(string))
+		return true
+	}
+	sd.serverList.Range(f)
+	return arr
+}
+
+// 关闭服务
+func (sd *ServiceDiscovery) Close() error {
+	return sd.cli.Close()
 }
