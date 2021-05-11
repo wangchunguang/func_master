@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -189,17 +190,41 @@ func TestLogError(t *testing.T) {
 //服务注册
 func TestEtcd_server(t *testing.T) {
 	var endpoints = []string{"localhost:2379"}
-	ser, err := NewServiceRegister(endpoints, "/web/nodel", "localhost:8000", 5)
-	if err != nil {
-		LogError(err)
-		return
-	}
-	go ser.ListenLeaseRespChan()
+	web_key := "/web/nodel"
+	value := "localhost:800"
+	go func() {
+		for i := 0; i < 10; i++ {
+			select {
+			case <-time.Tick(3 * time.Second):
+				demo_etcd_derver(endpoints, web_key+"/"+strconv.Itoa(i), value+strconv.Itoa(i))
+			}
+
+		}
+	}()
+	grpc_key := "/grpc/nodel"
+	go func() {
+		for i := 0; i < 5; i++ {
+			select {
+			case <-time.Tick(2 * time.Second):
+				demo_etcd_derver(endpoints, grpc_key+"/"+strconv.Itoa(i), value+strconv.Itoa(i))
+
+			}
+		}
+	}()
 
 	select {
 	// case <-time.After(20 * time.Second):
 	// 	ser.Close()
 	}
+}
+
+func demo_etcd_derver(endpoints []string, key, value string) {
+	_, err := NewServiceRegister(endpoints, key, value, 5)
+	if err != nil {
+		LogError(err)
+		return
+	}
+	//go ser.ListenLeaseRespChan()
 
 }
 
@@ -215,9 +240,8 @@ func TestEtcd_service(t *testing.T) {
 	ser.WatchService("/grpc/")
 	for {
 		select {
-		case <-time.Tick(10 * time.Second):
+		case <-time.Tick(2 * time.Second):
 			log.Println(ser.loadListServiceList())
 		}
 	}
-
 }

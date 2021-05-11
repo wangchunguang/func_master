@@ -127,17 +127,15 @@ func (sd *ServiceDiscovery) WatchService(prefix string) error {
 
 // 监听前缀
 func (sd *ServiceDiscovery) watcher(prefix string) {
-	// 发布监听请求，等待新的通道
+	// 发布监听请求，返回的是一个管道，在管道里面可以一直获取新的数据
 	watch := sd.cli.Watch(context.Background(), prefix, clientv3.WithPrefix())
 	for wresp := range watch {
 		for _, resp := range wresp.Events {
 			// 返回的数据为两种，put表示新增进去，delete表示删除
 			switch resp.Type {
 			case mvccpb.PUT: // 修改或者新增
-				LogInfo("put key =%s", resp.Kv.Key)
 				sd.setServiceList(string(resp.Kv.Key), string(resp.Kv.Value))
 			case mvccpb.DELETE: // 删除操作
-				LogInfo("Delete key =%s", resp.Kv.Key)
 				sd.delServiceList(string(resp.Kv.Key))
 			}
 		}
@@ -161,14 +159,16 @@ func (sd *ServiceDiscovery) loadServiceList(key string) string {
 }
 
 // 读取所有服务器地址
-func (sd *ServiceDiscovery) loadListServiceList() []string {
+func (sd *ServiceDiscovery) loadListServiceList() map[string]string {
+	p := make(map[string]string, 0)
 	arr := make([]string, 0)
 	f := func(key, value interface{}) bool {
 		arr = append(arr, value.(string))
+		p[key.(string)] = value.(string)
 		return true
 	}
 	sd.serverList.Range(f)
-	return arr
+	return p
 }
 
 // 关闭服务
