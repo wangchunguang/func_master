@@ -275,11 +275,10 @@ func (mq *msgQue) baseStop() {
 
 // 处理消息
 func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
-	// 数据经过加密的
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
-		mq.iseed = mq.iseed*cryptA + cryptB
 		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
 		bcc := CountBCC(msg.Data, 0, msg.Head.Len)
+		//LogInfo("End Decrypt seed:%d bcc:%v Head:%v data:%v", r.iseed, bcc, msg.Head, msg.Data)
 		if msg.Head.Bcc != bcc {
 			LogWarn("client bcc err conn:%d", mq.id)
 			return false

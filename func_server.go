@@ -22,33 +22,14 @@ func StartServer(addr string, typ MsgType, handler IMsgHandler, parser *Parser, 
 			LogInfo("listen on :%v", listen.Addr())
 			// 初始化tcp监听
 			tcpListen := NewTcpListen(listen, typ, handler, parser, addr)
+			// 设置是否加密
+			tcpListen.SetEncrypt(encrypt)
 			Go(func() {
 				tcpListen.listen()
 			})
 		} else {
 			LogError("listen on %s failed, errstr:%s", addr, err)
 			return err
-		}
-	}
-	return nil
-}
-
-// 内部客户端调用监听连接
-// StartConnect 开始连接
-func StartConnect(netype string, addr string, typ MsgType, handler IMsgHandler, parser *Parser, user interface{}) IMsgQue {
-	if IsStop() {
-		return nil
-	}
-	if netype == "tcp" {
-		msgque := newTcpConn(netype, addr, nil, typ, handler, parser, user)
-		if handler.OnNewMsgQue(msgque) {
-			msgque.init = true
-			if msgque.Connect() {
-				return msgque
-			}
-			LogError("connect to:%s:%s failed", netype, addr)
-		} else {
-			msgque.Stop()
 		}
 	}
 	return nil

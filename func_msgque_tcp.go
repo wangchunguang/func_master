@@ -207,21 +207,31 @@ func (tcp *tcpMsgQue) EncryptedServerSeed() {
 	}
 }
 
-// SetIseed 设置加密种子，并发送给客户端
+// SetIseed 设置加密种子
 func (tcp *tcpMsgQue) SetIseed(msg *Message) bool {
+	// 作为客户端时，内部服务器调用
 	if tcp.connTyp == ConnTypeConn && msg.Head.Cmd == 0 {
-		data := make([]byte, 8)
 		tcp.encrypt = true
-		tcp.iseed = binary.BigEndian.Uint32(msg.Data)
-		binary.BigEndian.PutUint32(data, tcp.iseed)
-		binary.BigEndian.PutUint32(data[4:], tcp.oseed)
-		// 表示接收的是客户端自己的加密种子
-		msg := NewMsg(0, 1, 0, 0, data)
-		tcp.cwrite <- msg
+		tcp.oseed = binary.BigEndian.Uint32(msg.Data[:4])
+		tcp.iseed = binary.BigEndian.Uint32(msg.Data[4:])
 		return true
 	}
+	// 数据经过加密的 用于三次握手  传输种子需要加密
+	if tcp.encrypt && msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 && msg.Head.Cmd == uint8(HandCmd) {
+		msg.Data = DefaultNetDecrypt(tcp.iseed, msg.Data, 0, msg.Head.Len)
+		return tcp.SendCwriteData(msg)
+	}
 	return false
+}
 
+func (tcp *tcpMsgQue) SendCwriteData(msg *Message) bool {
+	data := make([]byte, 8)
+	tcp.iseed = binary.BigEndian.Uint32(msg.Data)
+	binary.BigEndian.PutUint32(data, tcp.iseed)
+	binary.BigEndian.PutUint32(data[4:], tcp.oseed)
+	m := NewMsg(0, 1, 0, 0, data)
+	tcp.cwrite <- m
+	return true
 }
 
 // 读取客户端的数据进行处理
@@ -259,6 +269,7 @@ func (tcp *tcpMsgQue) readMsg() {
 				break
 			}
 			msg := &Message{Head: head, Data: data}
+			// 作为客户端时内部调用或者三次握手的时候进行调用
 			if tcp.SetIseed(msg) {
 				head = nil
 				data = nil
@@ -347,10 +358,10 @@ func (tcp *tcpMsgQue) writeMsg() {
 			case <-stopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
+
 					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 {
 						m = m.Copy()
 						m.Head.Flags |= FlagEncrypt
-						tcp.oseed = tcp.oseed*cryptA + cryptB
 						m.Head.Bcc = CountBCC(m.Data, 0, m.Head.Len)
 						m.Data = DefaultNetEncrypt(tcp.oseed, m.Data, 0, m.Head.Len)
 					}
@@ -410,7 +421,6 @@ func (tcp *tcpMsgQue) listen() {
 			Go(func() {
 				// 初始化tcp接收
 				msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
-				// 设置是否加密
 				msgque.SetEncrypt(tcp.GetEncrypt())
 				// 向客户端发送服务器的种子
 				msgque.EncryptedServerSeed()
