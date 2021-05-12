@@ -1,6 +1,7 @@
 package func_master
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"sync"
@@ -76,6 +77,32 @@ func (tcp *tcpMsgQue) RemoteAddr() string {
 
 }
 
+func (tcp *tcpMsgQue) Connect() bool {
+	LogInfo("connect to addr:%s msgque:%d start", tcp.address, tcp.id)
+	c, err := net.DialTimeout(tcp.network, tcp.address, time.Second)
+	if err != nil {
+		LogInfo("connect to addr:%s msgque:%d err:%v", tcp.address, tcp.id, err)
+		tcp.handler.OnConnectComplete(tcp, false)
+		atomic.CompareAndSwapInt32(&tcp.connecting, 1, 0)
+		tcp.Stop()
+		return false
+	} else {
+		tcp.conn = c
+		tcp.available = true
+		LogInfo("connect to addr:%s msgque:%d sucess", tcp.address, tcp.id)
+		if tcp.handler.OnConnectComplete(tcp, true) {
+			atomic.CompareAndSwapInt32(&tcp.connecting, 1, 0)
+			Go(func() { tcp.read() })
+			Go(func() { tcp.write() })
+			return true
+		} else {
+			atomic.CompareAndSwapInt32(&tcp.connecting, 1, 0)
+			tcp.Stop()
+			return false
+		}
+	}
+}
+
 func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, parser *Parser, addr string) *tcpMsgQue {
 	msg := tcpMsgQue{
 		msgQue: msgQue{
@@ -91,6 +118,33 @@ func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, pa
 	msgqueMap[msg.id] = &msg
 	msgqueMapSync.Unlock()
 	return &msg
+}
+
+func newTcpConn(network, addr string, conn net.Conn, msgtyp MsgType, handler IMsgHandler, parser *Parser, user interface{}) *tcpMsgQue {
+	msgque := tcpMsgQue{
+		msgQue: msgQue{
+			id:            atomic.AddUint32(&msgqueId, 1),
+			cwrite:        make(chan *Message, 64),
+			msgTyp:        msgtyp,
+			handler:       handler,
+			timeout:       DefMsgQueTimeout,
+			connTyp:       ConnTypeConn,
+			parserFactory: parser,
+			lastTick:      Timestamp,
+			user:          user,
+		},
+		conn:    conn,
+		network: network,
+		address: addr,
+	}
+	if parser != nil {
+		msgque.parser = parser.Get()
+	}
+	msgqueMapSync.Lock()
+	msgqueMap[msgque.id] = &msgque
+	msgqueMapSync.Unlock()
+	LogInfo("new msgque:%d remote addr:%s:%s", msgque.id, network, addr)
+	return &msgque
 }
 
 func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Parser) *tcpMsgQue {
@@ -135,6 +189,53 @@ func (tcp *tcpMsgQue) read() {
 	tcp.readMsg()
 }
 
+// SetEncrypt 设置是否加密
+func (mq *msgQue) SetEncrypt(e bool) {
+	mq.encrypt = e
+}
+
+// EncryptedServerSeed 客户端与服务器的第一次通信，将加密种子传给客户端
+func (tcp *tcpMsgQue) EncryptedServerSeed() {
+	if tcp.GetEncrypt() && tcp.connTyp == ConnTypeAccept {
+		tcp.oseed = uint32(Timestamp)
+		data := make([]byte, 4)
+		binary.BigEndian.PutUint32(data, tcp.oseed)
+		// 第一次握手
+		msg := NewMsg(uint8(HandCmd), uint8(HandAct), 0, 0, data)
+		//  将加密种子传给客户端
+		tcp.cwrite <- msg
+	}
+}
+
+// SetIseed 设置第二次握手
+func (tcp *tcpMsgQue) SetIseed(msg *Message) bool {
+	if tcp.connTyp == ConnTypeConn && msg.Head.Cmd == 0 {
+		data := make([]byte, 8)
+		tcp.encrypt = true
+		tcp.iseed = binary.BigEndian.Uint32(msg.Data)
+		binary.BigEndian.PutUint32(data, tcp.iseed)
+		binary.BigEndian.PutUint32(data[4:], tcp.oseed)
+		// 表示接收的是客户端自己的加密种子
+		msg := NewMsg(0, 1, 0, 0, data)
+		tcp.cwrite <- msg
+		return true
+	}
+	return false
+
+}
+
+// EncryptedOutput 服务器接收到客户端传输过来的数据，获取到客户端的种子，加载到一起发送至客户端
+func (tcp *tcpMsgQue) EncryptedOutput() {
+	if tcp.GetEncrypt() && tcp.connTyp == ConnTypeAccept {
+		data := make([]byte, 8)
+		binary.BigEndian.PutUint32(data, tcp.iseed)
+		binary.BigEndian.PutUint32(data[4:], tcp.oseed)
+		// 第三次握手
+		msg := NewMsg(0, 2, 0, 0, data)
+		tcp.cwrite <- msg
+	}
+}
+
 // 读取客户端的数据进行处理
 func (tcp *tcpMsgQue) readMsg() {
 	// 消息头数据
@@ -165,12 +266,17 @@ func (tcp *tcpMsgQue) readMsg() {
 			}
 		} else {
 			_, err := io.ReadFull(tcp.conn, data)
-
 			if err != nil {
 				LogError("msgque:%v recv data err:%v", tcp.id, err)
 				break
 			}
-			if !tcp.processMsg(tcp, &Message{Head: head, Data: data}) {
+			msg := &Message{Head: head, Data: data}
+			if tcp.SetIseed(msg) {
+				head = nil
+				data = nil
+				continue
+			}
+			if !tcp.processMsg(tcp, msg) {
 				LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
 				break
 			}
@@ -253,7 +359,7 @@ func (tcp *tcpMsgQue) writeMsg() {
 			case <-stopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
-					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 && m.Head.Act != 0 {
+					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 {
 						m = m.Copy()
 						m.Head.Flags |= FlagEncrypt
 						tcp.oseed = tcp.oseed*cryptA + cryptB
@@ -304,7 +410,6 @@ func (tcp *tcpMsgQue) listen() {
 		case <-c:
 		}
 		tcp.listener.Close()
-
 	})
 	for !tcp.IsStop() {
 		accept, err := tcp.listener.Accept()
@@ -319,6 +424,8 @@ func (tcp *tcpMsgQue) listen() {
 				msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 				// 设置是否加密
 				msgque.SetEncrypt(tcp.GetEncrypt())
+				// 向客户端发送服务器的种子
+				msgque.EncryptedServerSeed()
 				if tcp.handler.OnNewMsgQue(msgque) {
 					msgque.init = true
 					msgque.available = true

@@ -1,10 +1,6 @@
 package func_master
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/binary"
-	"io/ioutil"
 	"reflect"
 	"sync"
 	"time"
@@ -277,33 +273,8 @@ func (mq *msgQue) baseStop() {
 	msgqueMapSync.Unlock()
 }
 
-// 设置加密
-func (mq *msgQue) SetEncrypt(e bool) {
-	mq.encrypt = e
-	if e && mq.connTyp == ConnTypeAccept {
-		mq.oseed = uint32(Timestamp)
-		mq.iseed = uint32(Timestamp) + uint32(RandNumber(99999))
-		data := make([]byte, 8)
-		binary.BigEndian.PutUint32(data, mq.iseed)
-		binary.BigEndian.PutUint32(data[4:], mq.oseed)
-		msg := NewMsg(0, 0, 0, 0, data)
-		//  将加密种子传给客户端
-		mq.cwrite <- msg
-	}
-}
-
 // 处理消息
 func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
-	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
-		if len(msg.Data) != 8 {
-			LogWarn("init seed msg err")
-			return false
-		}
-		mq.encrypt = true
-		mq.oseed = binary.BigEndian.Uint32(msg.Data[:4])
-		mq.iseed = binary.BigEndian.Uint32(msg.Data[4:])
-		return true
-	}
 	// 数据经过加密的
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
 		mq.iseed = mq.iseed*cryptA + cryptB
@@ -326,7 +297,6 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 	}
 	if mq.parser != nil {
 		mp, err := mq.parser.ParseC2S(msg)
-
 		if err == nil {
 			msg.IMsgParser = mp
 		} else {
@@ -349,70 +319,6 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		f = mq.handler.OnProcessMsg
 	}
 	return f(msgque, msg)
-
-}
-
-// 解密
-// seed 加密解密种子，  buf 数据，开始的下标位置 长度
-func DefaultNetDecrypt(seed uint32, buf []byte, offset uint32, len uint32) []byte {
-	if len < offset {
-		LogError("Decryption length is not enough")
-		return buf
-	}
-	b_buf := bytes.NewBuffer([]byte{})
-
-	binary.Write(b_buf, binary.LittleEndian, seed)
-	key := b_buf.Bytes()
-	k := int32(0)
-	c := byte(0)
-	for i := offset; i < len; i++ {
-		k %= 4
-		x := (buf[i] - c) ^ key[k]
-		k++
-		c = buf[i]
-		buf[i] = x
-	}
-	return buf
-}
-
-// 加密
-func DefaultNetEncrypt(seed uint32, buf []byte, offset uint32, len uint32) []byte {
-	if len <= offset {
-		return buf
-	}
-	b_buf := bytes.NewBuffer([]byte{})
-	binary.Write(b_buf, binary.LittleEndian, seed)
-	key := b_buf.Bytes()
-	k := int32(0)
-	c := byte(0)
-	for i := offset; i < len; i++ {
-		k %= 4
-		x := (buf[i] ^ key[k]) + c
-		k++
-		c = x
-		buf[i] = c
-	}
-	return buf
-}
-
-// 压缩
-func GZipCompress(data []byte) []byte {
-	var in bytes.Buffer
-	w := gzip.NewWriter(&in)
-	w.Write(data)
-	w.Close()
-	return in.Bytes()
-}
-
-// 解压
-func GZipUnCompress(data []byte) ([]byte, error) {
-	b := bytes.NewReader(data)
-	r, _ := gzip.NewReader(b)
-	undatas, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return undatas, nil
 
 }
 

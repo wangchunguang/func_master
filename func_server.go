@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-// StartServer addr ip地址
+//StartServer 启动服务器
+//  addr ip地址
 // typ  基于确定的消息头
 // IMsgHandler 消息处理程序的接口
 // parser 解析器
@@ -21,8 +22,6 @@ func StartServer(addr string, typ MsgType, handler IMsgHandler, parser *Parser, 
 			LogInfo("listen on :%v", listen.Addr())
 			// 初始化tcp监听
 			tcpListen := NewTcpListen(listen, typ, handler, parser, addr)
-			//	 设置加密
-			tcpListen.SetEncrypt(encrypt)
 			Go(func() {
 				tcpListen.listen()
 			})
@@ -30,7 +29,26 @@ func StartServer(addr string, typ MsgType, handler IMsgHandler, parser *Parser, 
 			LogError("listen on %s failed, errstr:%s", addr, err)
 			return err
 		}
+	}
+	return nil
+}
 
+// StartConnect 开始连接
+func StartConnect(netype string, addr string, typ MsgType, handler IMsgHandler, parser *Parser, user interface{}) IMsgQue {
+	if IsStop() {
+		return nil
+	}
+	if netype == "tcp" {
+		msgque := newTcpConn(netype, addr, nil, typ, handler, parser, user)
+		if handler.OnNewMsgQue(msgque) {
+			msgque.init = true
+			if msgque.Connect() {
+				return msgque
+			}
+			LogError("connect to:%s:%s failed", netype, addr)
+		} else {
+			msgque.Stop()
+		}
 	}
 	return nil
 }
