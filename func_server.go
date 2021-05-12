@@ -33,6 +33,7 @@ func StartServer(addr string, typ MsgType, handler IMsgHandler, parser *Parser, 
 	return nil
 }
 
+// 内部客户端调用监听连接
 // StartConnect 开始连接
 func StartConnect(netype string, addr string, typ MsgType, handler IMsgHandler, parser *Parser, user interface{}) IMsgQue {
 	if IsStop() {

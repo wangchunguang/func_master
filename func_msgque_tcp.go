@@ -196,7 +196,7 @@ func (mq *msgQue) SetEncrypt(e bool) {
 
 // EncryptedServerSeed 客户端与服务器的第一次通信，将加密种子传给客户端
 func (tcp *tcpMsgQue) EncryptedServerSeed() {
-	if tcp.GetEncrypt() && tcp.connTyp == ConnTypeAccept {
+	if tcp.connTyp == ConnTypeAccept {
 		tcp.oseed = uint32(Timestamp)
 		data := make([]byte, 4)
 		binary.BigEndian.PutUint32(data, tcp.oseed)
@@ -207,7 +207,7 @@ func (tcp *tcpMsgQue) EncryptedServerSeed() {
 	}
 }
 
-// SetIseed 设置第二次握手
+// SetIseed 设置加密种子，并发送给客户端
 func (tcp *tcpMsgQue) SetIseed(msg *Message) bool {
 	if tcp.connTyp == ConnTypeConn && msg.Head.Cmd == 0 {
 		data := make([]byte, 8)
@@ -222,18 +222,6 @@ func (tcp *tcpMsgQue) SetIseed(msg *Message) bool {
 	}
 	return false
 
-}
-
-// EncryptedOutput 服务器接收到客户端传输过来的数据，获取到客户端的种子，加载到一起发送至客户端
-func (tcp *tcpMsgQue) EncryptedOutput() {
-	if tcp.GetEncrypt() && tcp.connTyp == ConnTypeAccept {
-		data := make([]byte, 8)
-		binary.BigEndian.PutUint32(data, tcp.iseed)
-		binary.BigEndian.PutUint32(data[4:], tcp.oseed)
-		// 第三次握手
-		msg := NewMsg(0, 2, 0, 0, data)
-		tcp.cwrite <- msg
-	}
 }
 
 // 读取客户端的数据进行处理
