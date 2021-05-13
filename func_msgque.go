@@ -1,6 +1,7 @@
 package func_master
 
 import (
+	"encoding/binary"
 	"reflect"
 	"sync"
 	"time"
@@ -89,6 +90,8 @@ type msgQue struct {
 	encrypt       bool   //通信是否加密
 	iseed         uint32 //input种子
 	oseed         uint32 //output种子
+	interactive   bool   // 是否进行三次握手成功
+
 }
 
 // 设置是否快速发送
@@ -119,6 +122,11 @@ func (mq *msgQue) GetConnType() ConnType {
 // 是否停止
 func (mq *msgQue) Available() bool {
 	return mq.available
+}
+
+// 设置服务器与客户端是否进行三次握手
+func (mq *msgQue) SetInteractive() {
+	mq.interactive = true
 }
 
 // 发送
@@ -189,6 +197,12 @@ func (mq *msgQue) setCallback(tag int, c chan *Message) {
 		oc <- nil
 	}
 
+}
+
+// 设置种子
+func (mq *msgQue) SetSeed(data []byte) {
+	mq.oseed = uint32(Timestamp)
+	mq.iseed = binary.BigEndian.Uint32(data)
 }
 
 // 设置超时
@@ -275,6 +289,17 @@ func (mq *msgQue) baseStop() {
 
 // 处理消息
 func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
+	//作为客户端时--robot
+	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
+		if len(msg.Data) != 8 {
+			LogWarn("init seed msg err")
+			return false
+		}
+		mq.encrypt = true
+		mq.oseed = binary.BigEndian.Uint32(msg.Data[:4])
+		mq.iseed = binary.BigEndian.Uint32(msg.Data[4:])
+		return true
+	}
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
 		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
 		bcc := CountBCC(msg.Data, 0, msg.Head.Len)

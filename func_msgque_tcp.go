@@ -194,53 +194,13 @@ func (mq *msgQue) SetEncrypt(e bool) {
 	mq.encrypt = e
 }
 
-// EncryptedServerSeed 客户端与服务器的第一次通信，将加密种子传给客户端
-func (tcp *tcpMsgQue) EncryptedServerSeed() {
-	if tcp.connTyp == ConnTypeAccept {
-		tcp.oseed = uint32(Timestamp)
-		data := make([]byte, 4)
-		binary.BigEndian.PutUint32(data, tcp.oseed)
-		// 第一次握手
-		msg := NewMsg(uint8(HandCmd), uint8(HandAct), 0, 0, data)
-		//  将加密种子传给客户端
-		tcp.cwrite <- msg
-	}
-}
-
-// SetIseed 设置加密种子
-func (tcp *tcpMsgQue) SetIseed(msg *Message) bool {
-	// 作为客户端时，内部服务器调用
-	if tcp.connTyp == ConnTypeConn && msg.Head.Cmd == 0 {
-		tcp.encrypt = true
-		tcp.oseed = binary.BigEndian.Uint32(msg.Data[:4])
-		tcp.iseed = binary.BigEndian.Uint32(msg.Data[4:])
-		return true
-	}
-	// 数据经过加密的 用于三次握手  传输种子需要加密
-	if tcp.encrypt && msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 && msg.Head.Cmd == uint8(HandCmd) {
-		msg.Data = DefaultNetDecrypt(tcp.iseed, msg.Data, 0, msg.Head.Len)
-		return tcp.SendCwriteData(msg)
-	}
-	return false
-}
-
-func (tcp *tcpMsgQue) SendCwriteData(msg *Message) bool {
-	data := make([]byte, 8)
-	tcp.iseed = binary.BigEndian.Uint32(msg.Data)
-	binary.BigEndian.PutUint32(data, tcp.iseed)
-	binary.BigEndian.PutUint32(data[4:], tcp.oseed)
-	m := NewMsg(0, 1, 0, 0, data)
-	tcp.cwrite <- m
-	return true
-}
-
 // 读取客户端的数据进行处理
 func (tcp *tcpMsgQue) readMsg() {
 	// 消息头数据
 	headData := make([]byte, MsgHeadSize)
 	var data []byte
 	var head *MessageHead
-	for !tcp.IsStop() {
+	for !tcp.IsStop() && tcp.interactive {
 		if head == nil {
 			_, err := io.ReadFull(tcp.conn, headData)
 			if err != nil {
@@ -268,14 +228,7 @@ func (tcp *tcpMsgQue) readMsg() {
 				LogError("msgque:%v recv data err:%v", tcp.id, err)
 				break
 			}
-			msg := &Message{Head: head, Data: data}
-			// 作为客户端时内部调用或者三次握手的时候进行调用
-			if tcp.SetIseed(msg) {
-				head = nil
-				data = nil
-				continue
-			}
-			if !tcp.processMsg(tcp, msg) {
+			if !tcp.processMsg(tcp, &Message{Head: head, Data: data}) {
 				LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
 				break
 			}
@@ -358,7 +311,6 @@ func (tcp *tcpMsgQue) writeMsg() {
 			case <-stopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
-
 					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 {
 						m = m.Copy()
 						m.Head.Flags |= FlagEncrypt
@@ -410,7 +362,9 @@ func (tcp *tcpMsgQue) listen() {
 		}
 		tcp.listener.Close()
 	})
-	for !tcp.IsStop() {
+	tcp.ShakeHands()
+
+	for !tcp.IsStop() && tcp.interactive {
 		accept, err := tcp.listener.Accept()
 		if err != nil {
 			if stop == 0 && tcp.stop == 0 {
@@ -422,8 +376,6 @@ func (tcp *tcpMsgQue) listen() {
 				// 初始化tcp接收
 				msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 				msgque.SetEncrypt(tcp.GetEncrypt())
-				// 向客户端发送服务器的种子
-				msgque.EncryptedServerSeed()
 				if tcp.handler.OnNewMsgQue(msgque) {
 					msgque.init = true
 					msgque.available = true
@@ -445,4 +397,49 @@ func (tcp *tcpMsgQue) listen() {
 	}
 	close(c)
 	tcp.Stop()
+}
+
+// ShakeHands 三次握手
+func (tcp *tcpMsgQue) ShakeHands() bool {
+	// 客户端加密种子数据
+	iseedData := make([]byte, MsgClientSendSize)
+	// 加密种子
+	seedData := make([]byte, MsgSendSize)
+	_, err := io.ReadFull(tcp.conn, iseedData)
+	if err != nil {
+		LogError("Failed to receive client encrypted seed err :%s", err)
+		return false
+	}
+	tcp.SetSeed(iseedData)
+	binary.LittleEndian.PutUint32(seedData[:4], tcp.iseed)
+	binary.LittleEndian.PutUint32(seedData[4:], tcp.oseed)
+	encrypt := DefaultNetEncrypt(tcp.iseed, seedData, 0, MsgSendSize)
+	tcp.SeedWrite(encrypt)
+	if ok := tcp.SeedWrite(encrypt); ok {
+		tcp.SetInteractive()
+	}
+	return true
+}
+
+// SeedWrite 写入加密种子到客户端
+func (tcp *tcpMsgQue) SeedWrite(data []byte) bool {
+	// 写入计数
+	writeCount := 0
+	err := tcp.conn.SetWriteDeadline(time.Now().Add(TIMEOUT * time.Second))
+	if err != nil {
+		LogError("Failed to set timeout err :%s", err)
+		return false
+	}
+	write, err := tcp.conn.Write(data)
+	if err != nil {
+		LogError("Failed to write to the client err :%s", err)
+		return false
+	}
+	writeCount += write
+	if writeCount < write {
+		_, err := tcp.conn.Write(data[writeCount:])
+		LogError("Failed to write to the client err :%s", err)
+		return false
+	}
+	return true
 }

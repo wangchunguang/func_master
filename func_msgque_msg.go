@@ -35,8 +35,7 @@ type MessageHead struct {
 	Index   uint16 //序号
 	Flags   uint8  //标记
 	Bcc     uint8  //加密校验
-	forever bool   // 是否是永久性
-
+	Forward bool   // 是否通过网关请求转发
 }
 
 func (mh *MessageHead) FastBytes(data []byte) []byte {
@@ -64,7 +63,7 @@ func (mh *MessageHead) Copy() *MessageHead {
 		Index:   mh.Index,
 		Flags:   mh.Flags,
 		Bcc:     mh.Bcc,
-		forever: mh.forever,
+		Forward: mh.Forward,
 	}
 	return head
 }

@@ -31,6 +31,14 @@ const (
 	DEADLINE               = 5
 )
 
+const (
+
+	// MsgClientSendSize 客户端加密种子的大小
+	MsgClientSendSize = 4
+	// MsgSendSize 加密种子的大小
+	MsgSendSize = 8
+)
+
 // http get请求
 func HttpGet(url string) (string, error, *http.Response) {
 	if len(url) == 0 {
@@ -183,7 +191,7 @@ func HttpDownload(url, file string) error {
 	return nil
 }
 
-// 发送邮件
+// SendMail 发送邮件
 func SendMail(user, password, host, to, subject, body, mailtype string) error {
 	hp := strings.Split(host, ":")
 	auth := smtp.PlainAuth("", user, password, hp[0])
