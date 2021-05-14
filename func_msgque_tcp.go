@@ -213,6 +213,12 @@ func (tcp *tcpMsgQue) readMsg() {
 				LogInfo("Did not get the data of the message header headDate  :%s", headData)
 				break
 			}
+			if !head.Forward && tcp.connTyp != ConnTypeConn {
+				LogInfo("Request the gateway not to forward")
+				head = nil
+				data = nil
+				continue
+			}
 			if head.Len == 0 {
 				if !tcp.processMsg(tcp, &Message{Head: head}) {
 					LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
@@ -363,7 +369,6 @@ func (tcp *tcpMsgQue) listen() {
 		tcp.listener.Close()
 	})
 	tcp.ShakeHands()
-
 	for !tcp.IsStop() && tcp.interactive {
 		accept, err := tcp.listener.Accept()
 		if err != nil {

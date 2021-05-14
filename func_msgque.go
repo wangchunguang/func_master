@@ -251,7 +251,7 @@ func (mq *msgQue) GetUser() interface{} {
 	return mq.user
 }
 
-// 尝试回拨
+// 尝试回调，同步逻辑处理
 func (mq *msgQue) tryCallback(msg *Message) (re bool) {
 	if mq.callback == nil {
 		return false

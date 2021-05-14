@@ -23,8 +23,8 @@ const (
 var MaxMsgDataSize uint32 = 1024 * 1024
 
 const (
-	// 消息头的大小
-	MsgHeadSize = 12
+	// MsgHeadSize 消息头的大小
+	MsgHeadSize = 16
 )
 
 type MessageHead struct {
@@ -47,6 +47,7 @@ func (mh *MessageHead) FastBytes(data []byte) []byte {
 	phead.Index = mh.Index
 	phead.Flags = mh.Flags
 	phead.Bcc = mh.Bcc
+	phead.Forward = mh.Forward
 	return data
 
 }
