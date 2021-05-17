@@ -46,7 +46,7 @@ var (
 	ErrFileRead       = NewError("文件读取错误", 62)
 	ErrFileWriter     = NewError("文件写入错误", 63)
 	ErrDBDataType     = NewError("数据库数据类型错误", 101)
-	ErrNetTimeout     = NewError("网络超时", 200)
+	ErrNetTimeout     = NewError("网络超时", 401)
 
 	ErrErrIdNotFound = NewError("错误没有对应的错误码", 255)
 )

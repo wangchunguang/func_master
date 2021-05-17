@@ -25,6 +25,7 @@ var (
 	poolGoCount int32
 	msgqueId    uint32     //消息队列id
 	etcdTimeout uint32 = 5 // 出则etcd的超时时间
+
 )
 
 var (
@@ -52,9 +53,10 @@ var (
 		sync.Mutex
 		M map[uint64]string
 	}{M: map[uint64]string{}}
-	msgqueMap = map[uint32]IMsgQue{}
-	atexitMap = map[uint32]func(){}
-	statis    = &Statis{}
+	msgqueMap   = map[uint32]IMsgQue{}
+	atexitMap   = map[uint32]func(){}
+	statis      = &Statis{}
+	someTimeout = 300 * time.Second // 长连接时间
 )
 
 func init() {

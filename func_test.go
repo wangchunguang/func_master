@@ -159,23 +159,26 @@ func TestWalkDir(t *testing.T) {
 func TestWaitForSystemExit2(t *testing.T) {
 	c := make(chan int)
 	go demo(c)
-	tick := time.NewTimer(time.Second * 5)
-	select {
-	case <-stopChanForGo:
-		fmt.Println(111111111)
-	case n := <-c:
-		fmt.Println(n)
-	case <-tick.C:
-		fmt.Println(8888888888)
+	for {
+		select {
+		case <-stopChanForGo:
+			fmt.Println(111111111)
+		case n := <-c:
+			fmt.Println(n)
 
+		default:
+
+		}
 	}
-	fmt.Println(20000000)
+	select {}
 
 }
 
 func demo(num chan int) {
-	time.Sleep(5 * time.Second)
-	close(num)
+	for {
+		num <- 5
+
+	}
 }
 
 func TestLogError(t *testing.T) {

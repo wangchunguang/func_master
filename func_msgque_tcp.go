@@ -201,6 +201,11 @@ func (tcp *tcpMsgQue) readMsg() {
 	var data []byte
 	var head *MessageHead
 	for !tcp.IsStop() && tcp.interactive {
+		err := tcp.conn.SetReadDeadline(time.Now().Add(someTimeout))
+		if err != nil {
+			LogError("Failed to read transfer timeout err :%s", err)
+			break
+		}
 		if head == nil {
 			_, err := io.ReadFull(tcp.conn, headData)
 			if err != nil {
