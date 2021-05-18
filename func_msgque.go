@@ -300,6 +300,8 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		mq.iseed = binary.BigEndian.Uint32(msg.Data[4:])
 		return true
 	}
+
+	// 数据经过加密
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
 		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
 		bcc := CountBCC(msg.Data, 0, msg.Head.Len)
@@ -338,6 +340,7 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 			}
 		}
 	}
+
 	f := mq.handler.GetHandlerFunc(msgque, msg)
 	if f == nil {
 		f = mq.handler.OnProcessMsg

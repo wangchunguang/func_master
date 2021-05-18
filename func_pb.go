@@ -114,7 +114,7 @@ type pBParser struct {
 	*Parser
 }
 
-// 解析C2S
+// ParseC2S 解析C2S
 func (r *pBParser) ParseC2S(msg *Message) (IMsgParser, error) {
 	if msg == nil {
 		return nil, ErrPBUnPack
