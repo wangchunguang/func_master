@@ -29,9 +29,10 @@ const (
 type ConnType int
 
 const (
-	ConnTypeListen ConnType = iota //监听
-	ConnTypeConn                   //连接产生的
-	ConnTypeAccept                 //Accept产生的
+	ConnTypeListen  ConnType = iota //监听
+	ConnTypeConn                    //连接产生的
+	ConnTypeGateWay                 // 网关转发
+	ConnTypeAccept                  //Accept产生的
 )
 
 type IMsgQue interface {
@@ -300,7 +301,6 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		mq.iseed = binary.BigEndian.Uint32(msg.Data[4:])
 		return true
 	}
-
 	// 数据经过加密
 	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
 		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
@@ -321,6 +321,12 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		msg.Data = data
 		msg.Head.Len = uint32(len(msg.Data))
 	}
+
+	// 当是网关的时候 网关处理逻辑
+	if mq.connTyp == ConnTypeGateWay {
+
+	}
+
 	if mq.parser != nil {
 		mp, err := mq.parser.ParseC2S(msg)
 		if err == nil {

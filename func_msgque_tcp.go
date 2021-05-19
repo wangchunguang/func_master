@@ -176,6 +176,30 @@ func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Par
 	return &msgque
 }
 
+func newTcpGateWay(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Parser) *tcpMsgQue {
+	msg := tcpMsgQue{
+		msgQue: msgQue{
+			id:            atomic.AddUint32(&msgqueId, 1),
+			cwrite:        make(chan *Message, 64),
+			msgTyp:        msgty,
+			handler:       handler,
+			timeout:       DefMsgQueTimeout,
+			connTyp:       ConnTypeGateWay,
+			lastTick:      Timestamp,
+			parserFactory: parser,
+		},
+		conn: conn,
+	}
+
+	if parser != nil {
+		msg.parser = parser.Get()
+	}
+	msgqueMapSync.Lock()
+	msgqueMap[msg.id] = &msg
+	msgqueMapSync.Unlock()
+	return &msg
+}
+
 func (tcp *tcpMsgQue) read() {
 	tcp.wait.Add(1)
 	defer func() {
@@ -384,7 +408,7 @@ func (tcp *tcpMsgQue) listen() {
 		} else {
 			Go(func() {
 				// 初始化tcp接收
-				msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
+				msgque := newTcpGateWay(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 				msgque.SetEncrypt(tcp.GetEncrypt())
 				if tcp.handler.OnNewMsgQue(msgque) {
 					msgque.init = true
