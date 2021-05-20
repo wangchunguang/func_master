@@ -227,7 +227,6 @@ func demo_etcd_derver(endpoints []string, key, value string) {
 		LogError(err)
 		return
 	}
-	//go ser.ListenLeaseRespChan()
 
 }
 
@@ -247,4 +246,16 @@ func TestEtcd_service(t *testing.T) {
 			log.Println(ser.loadListServiceList())
 		}
 	}
+}
+
+func TestGoTo(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		fmt.Println(i)
+		if i == 3 {
+			goto build
+		}
+	}
+
+build:
+	fmt.Println(11111)
 }

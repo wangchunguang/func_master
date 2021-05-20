@@ -242,7 +242,8 @@ func (tcp *tcpMsgQue) readMsg() {
 				LogInfo("Did not get the data of the message header headDate  :%s", headData)
 				break
 			}
-			if !head.Forward && tcp.connTyp != ConnTypeConn {
+			// 当客户端请求过来，没有网关分发的标识，直接返回
+			if tcp.connTyp == ConnTypeGateWay && !head.Forward {
 				LogInfo("Request the gateway not to forward")
 				head = nil
 				data = nil

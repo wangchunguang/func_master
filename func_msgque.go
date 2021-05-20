@@ -288,7 +288,7 @@ func (mq *msgQue) baseStop() {
 	msgqueMapSync.Unlock()
 }
 
-// 处理消息
+// 处理消息  网关才会处理消息加密加压，内部通信没有消息加密和解压
 func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 	//作为客户端时--robot
 	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
@@ -302,17 +302,16 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		return true
 	}
 	// 数据经过加密
-	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 {
+	if msg.Head != nil && msg.Head.Flags&FlagEncrypt > 0 && mq.connTyp == ConnTypeGateWay {
 		msg.Data = DefaultNetDecrypt(mq.iseed, msg.Data, 0, msg.Head.Len)
 		bcc := CountBCC(msg.Data, 0, msg.Head.Len)
-		//LogInfo("End Decrypt seed:%d bcc:%v Head:%v data:%v", r.iseed, bcc, msg.Head, msg.Data)
 		if msg.Head.Bcc != bcc {
 			LogWarn("client bcc err conn:%d", mq.id)
 			return false
 		}
 	}
 	// 数据经过压缩的
-	if msg.Head != nil && msg.Head.Flags&FlagCompress > 0 && msg.Data != nil {
+	if msg.Head != nil && msg.Head.Flags&FlagCompress > 0 && msg.Data != nil && mq.connTyp == ConnTypeGateWay {
 		data, err := GZipUnCompress(msg.Data)
 		if err != nil {
 			LogError("msgque uncompress failed msgque:%v cmd:%v act:%v len:%v err:%v", msgque.Id(), msg.Head.Cmd, msg.Head.Act, msg.Head.Len, err)
@@ -322,7 +321,7 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		msg.Head.Len = uint32(len(msg.Data))
 	}
 
-	// 当是网关的时候 网关处理逻辑
+	// 当前为网关转发的逻辑
 	if mq.connTyp == ConnTypeGateWay {
 
 	}
