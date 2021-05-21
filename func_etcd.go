@@ -122,7 +122,6 @@ func (sd *ServiceDiscovery) WatchService(prefix string) error {
 	//	监听前缀，表示是否随时进行修改
 	go sd.watcher(prefix)
 	return nil
-
 }
 
 // 监听前缀
@@ -174,4 +173,34 @@ func (sd *ServiceDiscovery) loadListServiceList() map[string]string {
 // Close 关闭服务
 func (sd *ServiceDiscovery) Close() error {
 	return sd.cli.Close()
+}
+
+// EtcdServer 将etcd服务组装 进行轮询负载获取对应的ip
+func (sd *ServiceDiscovery) EtcdServer(prefix string) error {
+	err := sd.WatchService(prefix)
+	if err != nil {
+		LogError("Service acquisition failed err :%s", err)
+		return err
+	}
+	for {
+		select {
+		case <-time.Tick(TIMEOUT * time.Second): // 每隔五秒运行一次
+			load = NewLoadBalanceServerRoundRobin(sd.NewEtcdToBalanceServer())
+		}
+	}
+}
+
+// NewEtcdToBalanceServer 组装轮询负载服务
+func (sd *ServiceDiscovery) NewEtcdToBalanceServer() map[string]*BalanceServer {
+	balances := make(map[string]*BalanceServer)
+	for key, value := range sd.loadListServiceList() {
+		balances[key] = &BalanceServer{
+			Host:            value,
+			Name:            key,
+			Weight:          maxCpuNum,
+			CurrentWeight:   0,
+			EffectiveWeight: maxCpuNum,
+		}
+	}
+	return balances
 }

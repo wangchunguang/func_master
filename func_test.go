@@ -3,7 +3,6 @@ package func_master
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"reflect"
@@ -243,7 +242,7 @@ func TestEtcd_service(t *testing.T) {
 	for {
 		select {
 		case <-time.Tick(2 * time.Second):
-			log.Println(ser.loadListServiceList())
+			//log.Println(ser.loadListServiceList())
 		}
 	}
 }
@@ -258,4 +257,27 @@ func TestGoTo(t *testing.T) {
 
 build:
 	fmt.Println(11111)
+}
+
+func TestLoadBalanceWeightedRoundRobin_Select(t *testing.T) {
+	servers := make(map[string]*BalanceServer, 0)
+	servers["0"] = &BalanceServer{Host: "192.186.0.1:8080", Name: "0", Weight: 4}
+	servers["1"] = &BalanceServer{Host: "192.186.0.1:8081", Name: "1", Weight: 2}
+	servers["2"] = &BalanceServer{Host: "192.186.0.1:8090", Name: "2", Weight: 1}
+	//servers["3"] = &BalanceServer{Host: "192.186.0.1:9000",Name: "3",Weight: 8,Onlice: true}
+	//servers["4"] = &BalanceServer{Host: "192.186.0.1:3000",Name: "4",Weight: 10,Onlice: true}
+	//servers["5"] = &BalanceServer{Host: "192.186.0.1:4000",Name: "5",Weight: 10,Onlice: true}
+	//servers["6"] = &BalanceServer{Host: "192.186.0.1:5000",Name: "6",Weight: 2,Onlice: true}
+	//servers["7"] = &BalanceServer{Host: "192.186.0.1:6000",Name: "7",Weight: 12,Onlice: true}
+	//servers["8"] = &BalanceServer{Host: "192.186.0.1:7000",Name: "8",Weight: 4,Onlice: true}
+
+	lb := NewLoadBalanceServerRoundRobin(servers)
+	for i := 0; i < 10; i++ {
+		_ = lb.Select()
+		//fmt.Println(s)
+		lb.ToString()
+	}
+
+	Sleep(10000)
+
 }

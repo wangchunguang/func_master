@@ -24,7 +24,8 @@ var (
 	stop        int32 //停止标志
 	poolGoCount int32
 	msgqueId    uint32     //消息队列id
-	etcdTimeout uint32 = 5 // 出则etcd的超时时间
+	etcdTimeout uint32 = 5 // 连接etcd的超时时间
+	maxCpuNum   int        // cpu数量
 
 )
 
@@ -32,7 +33,8 @@ var (
 	StartTick int64
 	NowTick   int64
 	Timestamp int64
-	WeekStart int64 = 1514736000 //修正:不同时区不同
+	WeekStart int64  = 1514736000 //修正:不同时区不同
+	HostName  string              // 服务名称前缀，同一个服务多台机器上面部署，所以通过服务前缀，去获取这个服务的所有ip端口，
 )
 
 var (
@@ -57,11 +59,15 @@ var (
 	atexitMap   = map[uint32]func(){}
 	statis      = &Statis{}
 	someTimeout = 300 * time.Second // 长连接时间
+	load        *LoadBalanceServerRoundRobin
 )
 
 func init() {
 	rand.Seed(time.Now().Unix())
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	maxCpuNum = runtime.GOMAXPROCS(runtime.NumCPU())
+	if maxCpuNum < 4 {
+		maxCpuNum = 4
+	}
 	DefLog = NewLog(10000, &ConsoleLogger{true})
 	DefLog.SetLevel(LogLevelInfo)
 	timerTick()
