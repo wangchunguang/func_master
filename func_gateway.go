@@ -20,9 +20,10 @@ const (
 //	2. 客户端接收到加密种子之后，生成一个新的input种子，发给服务器,为服务器的output种子
 // 	3. 服务器接收到客户端生成的种子，推送到客户端形成三次握手
 
-// Gate_way 设计网关 根据命令选择不同的服务
-func Gate_way(tcp *tcpMsgQue) {
-
+// GateWay 设计网关 根据命令选择不同的服务
+func GateWay(tcp *tcpMsgQue) *BalanceServer {
+	server := load.Select()
+	return server
 }
 
 // DefaultNetDecrypt 解密

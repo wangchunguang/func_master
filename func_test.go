@@ -87,11 +87,11 @@ type CmdTaskMsgTestC2S struct {
 }
 
 func TestWaitForSystemExit(t *testing.T) {
-	signal.Notify(stopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
+	signal.Notify(StopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
 	fmt.Println(11111111111)
 
 	select {
-	case s := <-stopChanForSys:
+	case s := <-StopChanForSys:
 		fmt.Println(s)
 		fmt.Println(2222222222)
 
@@ -160,7 +160,7 @@ func TestWaitForSystemExit2(t *testing.T) {
 	go demo(c)
 	for {
 		select {
-		case <-stopChanForGo:
+		case <-StopChanForGo:
 			fmt.Println(111111111)
 		case n := <-c:
 			fmt.Println(n)

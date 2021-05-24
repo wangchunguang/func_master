@@ -32,7 +32,7 @@ func Go(fn func()) {
 
 func Go2(fn func(cstop chan struct{})) {
 	Go(func() {
-		Try(func() { fn(stopChanForGo) })
+		Try(func() { fn(StopChanForGo) })
 	})
 }
 
@@ -49,30 +49,30 @@ func RunGO() {
 }
 
 func Try(fn func()) {
-	waitAll.Add(1)
+	WaitAll.Add(1)
 	defer func() {
 		if err := recover(); err != nil {
 			LogError("error catch = %v", err)
 		}
 	}()
 	fn()
-	waitAll.Done()
+	WaitAll.Done()
 }
 
 func GoForLog(fn func(cstop chan struct{})) bool {
 	if IsStop() {
 		return false
 	}
-	waitAll.Add(1)
+	WaitAll.Add(1)
 	go func() {
-		fn(stopChanForLog)
-		waitAll.Done()
+		fn(StopChanForLog)
+		WaitAll.Done()
 	}()
 	return true
 }
 
 func goForRedis(fn func()) {
-	waitAllForRedis.Add(1)
+	WaitAllForRedis.Add(1)
 	var debugStr string
 	id := atomic.AddUint32(&goid, 1)
 	c := atomic.AddInt32(&gocount, 1)
@@ -82,7 +82,7 @@ func goForRedis(fn func()) {
 	}
 	go func() {
 		Try(fn)
-		waitAllForRedis.Done()
+		WaitAllForRedis.Done()
 		c = atomic.AddInt32(&gocount, -1)
 		if DefLog.Level() <= LogLevelDebug {
 			LogDebug("goroutine end id:%d count:%d from:%s", id, c, debugStr)

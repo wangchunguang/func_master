@@ -112,11 +112,12 @@ func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, pa
 			parserFactory: parser,
 			connTyp:       ConnTypeListen,
 		},
+		address:  addr,
 		listener: listener,
 	}
-	msgqueMapSync.Lock()
+	MsgqueMapSync.Lock()
 	msgqueMap[msg.id] = &msg
-	msgqueMapSync.Unlock()
+	MsgqueMapSync.Unlock()
 	return &msg
 }
 
@@ -140,9 +141,9 @@ func newTcpConn(network, addr string, conn net.Conn, msgtyp MsgType, handler IMs
 	if parser != nil {
 		msgque.parser = parser.Get()
 	}
-	msgqueMapSync.Lock()
+	MsgqueMapSync.Lock()
 	msgqueMap[msgque.id] = &msgque
-	msgqueMapSync.Unlock()
+	MsgqueMapSync.Unlock()
 	LogInfo("new msgque:%d remote addr:%s:%s", msgque.id, network, addr)
 	return &msgque
 }
@@ -170,9 +171,9 @@ func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Par
 		LogError("TCPConn error")
 	}
 	tcpConn.SetNoDelay(true)
-	msgqueMapSync.Lock()
+	MsgqueMapSync.Lock()
 	msgqueMap[msgque.id] = &msgque
-	msgqueMapSync.Unlock()
+	MsgqueMapSync.Unlock()
 	return &msgque
 }
 
@@ -194,9 +195,9 @@ func newTcpGateWay(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Pa
 	if parser != nil {
 		msg.parser = parser.Get()
 	}
-	msgqueMapSync.Lock()
+	MsgqueMapSync.Lock()
 	msgqueMap[msg.id] = &msg
-	msgqueMapSync.Unlock()
+	MsgqueMapSync.Unlock()
 	return &msg
 }
 
@@ -287,12 +288,17 @@ func (tcp *tcpMsgQue) write() {
 	}()
 	tcp.wait.Add(1)
 	// 是否快速发送
-	if tcp.sendFast {
-		//没有消息头
-		tcp.writeMsgFast()
+	//if tcp.sendFast {
+	//	//没有消息头
+	//	tcp.writeMsgFast()
+	//} else {
+	if tcp.connTyp == ConnTypeGateWay {
+
 	} else {
 		tcp.writeMsg()
 	}
+
+	//}
 
 }
 
@@ -303,9 +309,9 @@ func (tcp *tcpMsgQue) writeMsgFast() {
 	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
 	for !tcp.IsStop() || m != nil {
 		if m == nil {
-			// 当stopChanForGo 没有被关闭，或者100秒以内没有接受到数据，就会进行关闭
+			// 当StopChanForGo 没有被关闭，或者100秒以内没有接受到数据，就会进行关闭
 			select {
-			case <-stopChanForGo:
+			case <-StopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
 					data = m.Data
@@ -344,7 +350,7 @@ func (tcp *tcpMsgQue) writeMsg() {
 	for !IsStop() || m != nil {
 		if m == nil {
 			select {
-			case <-stopChanForGo:
+			case <-StopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
 					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 {
@@ -389,7 +395,7 @@ func (tcp *tcpMsgQue) writeMsg() {
 
 }
 
-func (tcp *tcpMsgQue) listen() {
+func (tcp *tcpMsgQue) gateway() {
 	c := make(chan struct{})
 	Go2(func(cstop chan struct{}) {
 		select {
@@ -398,6 +404,7 @@ func (tcp *tcpMsgQue) listen() {
 		}
 		tcp.listener.Close()
 	})
+	// 三次握手
 	tcp.ShakeHands()
 	for !tcp.IsStop() && tcp.interactive {
 		accept, err := tcp.listener.Accept()
@@ -406,31 +413,61 @@ func (tcp *tcpMsgQue) listen() {
 				LogInfo("Message acceptance failed msgque :%v  err :%s", tcp.id, err)
 			}
 			break
-		} else {
-			Go(func() {
-				// 初始化tcp接收
-				msgque := newTcpGateWay(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
-				msgque.SetEncrypt(tcp.GetEncrypt())
-				if tcp.handler.OnNewMsgQue(msgque) {
-					msgque.init = true
-					msgque.available = true
-					Go(func() {
-						LogInfo("process read for msgque:%d", msgque.id)
-						msgque.read()
-						LogInfo("process read end for msgque:%d", msgque.id)
-					})
-					Go(func() {
-						LogInfo("process read for msgque:%d", msgque.id)
-						msgque.write()
-						LogInfo("process read end for msgque:%d", msgque.id)
-					})
-				} else {
-					msgque.Stop()
-				}
-			})
 		}
+		msgque := newTcpGateWay(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
+		msgque.SetEncrypt(tcp.GetEncrypt())
+		tcp.listen(msgque)
 	}
 	close(c)
+	tcp.Stop()
+}
+
+func (tcp *tcpMsgQue) serverListen() {
+	c := make(chan struct{})
+	Go2(func(cstop chan struct{}) {
+		select {
+		case <-cstop:
+		case <-c:
+		}
+		tcp.listener.Close()
+	})
+	// 三次握手
+	tcp.ShakeHands()
+	for !tcp.IsStop() && tcp.interactive {
+		accept, err := tcp.listener.Accept()
+		if err != nil {
+			if stop == 0 && tcp.stop == 0 {
+				LogInfo("Message acceptance failed msgque :%v  err :%s", tcp.id, err)
+			}
+			break
+		}
+		msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
+		msgque.SetEncrypt(tcp.GetEncrypt())
+		tcp.listen(msgque)
+	}
+	close(c)
+	tcp.Stop()
+}
+
+func (tcp *tcpMsgQue) listen(msgque *tcpMsgQue) {
+	for !tcp.IsStop() && tcp.interactive {
+		if tcp.handler.OnNewMsgQue(msgque) {
+			msgque.init = true
+			msgque.available = true
+			Go(func() {
+				LogInfo("process read for msgque:%d", msgque.id)
+				msgque.read()
+				LogInfo("process read end for msgque:%d", msgque.id)
+			})
+			Go(func() {
+				LogInfo("process read for msgque:%d", msgque.id)
+				msgque.write()
+				LogInfo("process read end for msgque:%d", msgque.id)
+			})
+		} else {
+			msgque.Stop()
+		}
+	}
 	tcp.Stop()
 }
 

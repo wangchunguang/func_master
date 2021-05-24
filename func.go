@@ -25,8 +25,8 @@ func Stop() {
 	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
 		return
 	}
-	close(stopChanForGo)
-	for sc := 0; !waitAll.TryWait(); sc++ {
+	close(StopChanForGo)
+	for sc := 0; !WaitAll.TryWait(); sc++ {
 		Sleep(1)
 		if sc >= 3000 {
 			LogError("Server Stop Timeout")
@@ -39,7 +39,7 @@ func Stop() {
 		}
 	}
 	LogInfo("Server Stop")
-	close(stopChanForSys)
+	close(StopChanForSys)
 }
 
 func IsRuning() bool {
@@ -74,29 +74,29 @@ func Md5File(path string) string {
 // WaitForSystemExit 等待系统退出
 func WaitForSystemExit(atexit ...func()) {
 	statis.StartTime = time.Now()
-	signal.Notify(stopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
+	signal.Notify(StopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	select {
-	case <-stopChanForSys:
+	case <-StopChanForSys:
 		for _, v := range atexit {
 			v()
 		}
 		Stop()
 	}
-	atexitMapSync.Lock()
+	AtexitMapSync.Lock()
 	for _, v := range atexitMap {
 		v()
 	}
-	atexitMapSync.Unlock()
+	AtexitMapSync.Unlock()
 	for _, v := range redisManagers {
 		v.close()
 	}
-	waitAllForRedis.Wait()
+	WaitAllForRedis.Wait()
 	if !atomic.CompareAndSwapInt32(&stopForLog, 0, 1) {
 		return
 	}
-	waitAll.Wait()
-	close(stopChanForLog)
+	WaitAll.Wait()
+	close(StopChanForLog)
 }
 
 // 守护进程

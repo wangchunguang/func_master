@@ -81,6 +81,7 @@ type msgQue struct {
 	parser        IParser       // 解析器相关接口
 	parserFactory *Parser       // 解析器的工程类
 	timeout       int           //传输超时
+	cread         chan *Message //写入通道
 	lastTick      int64
 	init          bool
 	available     bool
@@ -283,9 +284,9 @@ func (mq *msgQue) baseStop() {
 		v <- nil
 		delete(mq.callback, k)
 	}
-	msgqueMapSync.Lock()
+	MsgqueMapSync.Lock()
 	delete(msgqueMap, mq.id)
-	msgqueMapSync.Unlock()
+	MsgqueMapSync.Unlock()
 }
 
 // 处理消息  网关才会处理消息加密加压，内部通信没有消息加密和解压
@@ -320,10 +321,10 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 		msg.Data = data
 		msg.Head.Len = uint32(len(msg.Data))
 	}
-
 	// 当前为网关转发的逻辑
 	if mq.connTyp == ConnTypeGateWay {
-
+		mq.cread <- msg
+		return true
 	}
 
 	if mq.parser != nil {
@@ -336,7 +337,6 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 				if mq.connTyp == ConnTypeConn {
 					return true
 				}
-
 				return false
 			} else if mq.parser.GetErrType() == ParseErrTypeClose {
 				return false

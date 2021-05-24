@@ -38,16 +38,16 @@ var (
 )
 
 var (
-	stopChanForLog = make(chan struct{})
-	stopChanForSys = make(chan os.Signal, 1)
-	stopChanForGo  = make(chan struct{})
+	StopChanForLog = make(chan struct{})
+	StopChanForSys = make(chan os.Signal, 1)
+	StopChanForGo  = make(chan struct{})
 )
 
 var (
-	waitAllForRedis sync.WaitGroup
-	msgqueMapSync   sync.Mutex
-	waitAll         = WaitGroup{}
-	atexitMapSync   sync.Mutex
+	WaitAllForRedis sync.WaitGroup
+	MsgqueMapSync   sync.Mutex
+	WaitAll         = WaitGroup{}
+	AtexitMapSync   sync.Mutex
 )
 
 var (
