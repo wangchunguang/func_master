@@ -126,6 +126,7 @@ func newTcpConn(network, addr string, conn net.Conn, msgtyp MsgType, handler IMs
 		msgQue: msgQue{
 			id:            atomic.AddUint32(&msgqueId, 1),
 			cwrite:        make(chan *Message, 64),
+			cread:         make(chan *Message, 64),
 			msgTyp:        msgtyp,
 			handler:       handler,
 			timeout:       DefMsgQueTimeout,
@@ -153,6 +154,7 @@ func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Par
 		msgQue: msgQue{
 			id:            atomic.AddUint32(&msgqueId, 1),
 			cwrite:        make(chan *Message, 64),
+			cread:         make(chan *Message, 64),
 			msgTyp:        msgty,
 			handler:       handler,
 			timeout:       DefMsgQueTimeout,
@@ -182,6 +184,7 @@ func newTcpGateWay(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Pa
 		msgQue: msgQue{
 			id:            atomic.AddUint32(&msgqueId, 1),
 			cwrite:        make(chan *Message, 64),
+			cread:         make(chan *Message, 64),
 			msgTyp:        msgty,
 			handler:       handler,
 			timeout:       DefMsgQueTimeout,
@@ -416,7 +419,16 @@ func (tcp *tcpMsgQue) gateway() {
 		}
 		msgque := newTcpGateWay(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 		msgque.SetEncrypt(tcp.GetEncrypt())
-		tcp.listen(msgque)
+		if tcp.handler.OnNewMsgQue(msgque) {
+			msgque.init = true
+			msgque.available = true
+			Go(func() {
+				tcp.readListen(msgque)
+			})
+
+		} else {
+			msgque.Stop()
+		}
 	}
 	close(c)
 	tcp.Stop()
@@ -443,32 +455,38 @@ func (tcp *tcpMsgQue) serverListen() {
 		}
 		msgque := newTcpAccept(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
 		msgque.SetEncrypt(tcp.GetEncrypt())
-		tcp.listen(msgque)
-	}
-	close(c)
-	tcp.Stop()
-}
-
-func (tcp *tcpMsgQue) listen(msgque *tcpMsgQue) {
-	for !tcp.IsStop() && tcp.interactive {
 		if tcp.handler.OnNewMsgQue(msgque) {
 			msgque.init = true
 			msgque.available = true
 			Go(func() {
-				LogInfo("process read for msgque:%d", msgque.id)
-				msgque.read()
-				LogInfo("process read end for msgque:%d", msgque.id)
+				tcp.readListen(msgque)
 			})
 			Go(func() {
-				LogInfo("process read for msgque:%d", msgque.id)
-				msgque.write()
-				LogInfo("process read end for msgque:%d", msgque.id)
+				tcp.waiteListen(msgque)
 			})
 		} else {
 			msgque.Stop()
 		}
 	}
+	close(c)
 	tcp.Stop()
+
+}
+
+func (tcp *tcpMsgQue) readListen(msgque *tcpMsgQue) {
+
+	LogInfo("process read for msgque:%d", msgque.id)
+	msgque.read()
+	LogInfo("process read end for msgque:%d", msgque.id)
+
+}
+
+func (tcp *tcpMsgQue) waiteListen(msgque *tcpMsgQue) {
+
+	LogInfo("process read for msgque:%d", msgque.id)
+	msgque.write()
+	LogInfo("process read end for msgque:%d", msgque.id)
+
 }
 
 // ShakeHands 三次握手

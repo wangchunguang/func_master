@@ -7,23 +7,28 @@ import (
 	"io/ioutil"
 )
 
-type CmdType int
-
-const (
-	HandCmd CmdType = iota
-	HandAct
-)
-
 // 网关 它负责与客户端建立连接，接收客户端发送过来的消息，并对消息进行验证，分发等
 // 设计思路：
 //	1. 服务器生成一个加密种子input传入客户端，为客户端的output种子
 //	2. 客户端接收到加密种子之后，生成一个新的input种子，发给服务器,为服务器的output种子
 // 	3. 服务器接收到客户端生成的种子，推送到客户端形成三次握手
 
-// GateWay 设计网关 根据命令选择不同的服务
-func GateWay(tcp *tcpMsgQue) *BalanceServer {
-	server := load.Select()
-	return server
+type AddrMap struct {
+	Id  uint16
+	Str string
+}
+
+var idAddrMap = map[uint16]string{}
+var strAddrMap = map[string]uint16{}
+
+func NewAddrMap(str string, id uint16) *AddrMap {
+	addrMap := &AddrMap{
+		Id:  id,
+		Str: str,
+	}
+	idAddrMap[id] = str
+	strAddrMap[str] = id
+	return addrMap
 }
 
 // DefaultNetDecrypt 解密
@@ -86,4 +91,10 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return undatas, nil
+}
+
+// GateWayAddr 获取指定服务下，负载均衡获得的一个ip地址
+func GateWayAddr(cmd int) string {
+	server := load.Select()
+	return server
 }

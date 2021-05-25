@@ -19,3 +19,7 @@ func StartConnect(netype string, addr string, typ MsgType, handler IMsgHandler, 
 	}
 	return nil
 }
+
+func StartClient(netype string, addr string, typ MsgType, handler IMsgHandler, parser *Parser, user interface{}) (err error, tcp *tcpMsgQue) {
+
+}

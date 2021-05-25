@@ -60,6 +60,7 @@ var (
 	statis      = &Statis{}
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
+	sd          *ServiceDiscovery
 )
 
 func init() {
