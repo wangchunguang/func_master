@@ -61,6 +61,7 @@ var (
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
 	sd          *ServiceDiscovery
+	poolMap     = make(map[string]*HttpPool)
 )
 
 func init() {

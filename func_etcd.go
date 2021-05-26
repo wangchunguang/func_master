@@ -117,7 +117,7 @@ func (sd *ServiceDiscovery) WatchService(prefix string) error {
 		return err
 	}
 	for _, kv := range response.Kvs {
-		sd.serverList.Store(string(kv.Key), string(kv.Value))
+		sd.setServiceList(string(kv.Key), string(kv.Value))
 	}
 	//	监听前缀，表示是否随时进行修改
 	go sd.watcher(prefix)

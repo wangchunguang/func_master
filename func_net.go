@@ -32,12 +32,24 @@ const (
 )
 
 const (
-
 	// MsgClientSendSize 客户端加密种子的大小
 	MsgClientSendSize = 4
 	// MsgSendSize 加密种子的大小
 	MsgSendSize = 8
 )
+
+type HttpPool struct {
+	coon *net.Conn
+	host string
+}
+
+func NewHttpPool(host string, conn *net.Conn) *HttpPool {
+	pool := &HttpPool{
+		coon: conn,
+		host: host,
+	}
+	return pool
+}
 
 // http get请求
 func HttpGet(url string) (string, error, *http.Response) {
