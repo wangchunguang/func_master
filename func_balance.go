@@ -1,5 +1,7 @@
 package func_master
 
+import "strings"
+
 // 负载均衡的实现
 // 实现算法：加权轮询负载均衡
 
@@ -31,7 +33,6 @@ type LoadBalanceServerRoundRobin struct {
 
 // NewLoadBalanceServerRoundRobin 初始化
 func NewLoadBalanceServerRoundRobin(servers map[string]*BalanceServer) *LoadBalanceServerRoundRobin {
-	load := &LoadBalanceServerRoundRobin{}
 	load.UpdateServers(servers)
 	return load
 }
@@ -39,7 +40,19 @@ func NewLoadBalanceServerRoundRobin(servers map[string]*BalanceServer) *LoadBala
 // UpdateServers 更新
 func (load *LoadBalanceServerRoundRobin) UpdateServers(servers map[string]*BalanceServer) {
 	server := make(map[string]*BalanceServer, 0)
-	for _, value := range servers {
+	for key, value := range servers {
+		split := strings.Split(key, "/")
+		poolmap, ok := gateWayMap[split[0]]
+		if !ok {
+			poolmap = make(map[string]*HttpPool)
+		}
+		connect, b := ClientConnect(value.Host, "tcp")
+		if !b {
+			continue
+		}
+		poolmap[key] = NewHttpPool(key, connect)
+		gateWayMap[split[0]] = poolmap
+
 		s := &BalanceServer{
 			Host:            value.Host,
 			Name:            value.Name,

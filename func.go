@@ -91,6 +91,9 @@ func WaitForSystemExit(atexit ...func()) {
 	for _, v := range redisManagers {
 		v.close()
 	}
+	for _, value := range poolMap {
+		value.coon.Close()
+	}
 	WaitAllForRedis.Wait()
 	if !atomic.CompareAndSwapInt32(&stopForLog, 0, 1) {
 		return

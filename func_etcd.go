@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"go.etcd.io/etcd/clientv3"
-
 	"sync"
 	"time"
 )
@@ -203,12 +202,4 @@ func (sd *ServiceDiscovery) NewEtcdToBalanceServer() map[string]*BalanceServer {
 		}
 	}
 	return balances
-}
-
-// 根据cmd状态，配置合适的ip地址进去
-func selectGateWay(cmd int) {
-	if prefix, ok := idAddrMap[uint16(cmd)]; ok {
-		sd.watcher(prefix)
-	}
-
 }

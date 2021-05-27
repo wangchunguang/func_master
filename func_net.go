@@ -39,11 +39,11 @@ const (
 )
 
 type HttpPool struct {
-	coon *net.Conn
+	coon net.Conn
 	host string
 }
 
-func NewHttpPool(host string, conn *net.Conn) *HttpPool {
+func NewHttpPool(host string, conn net.Conn) *HttpPool {
 	pool := &HttpPool{
 		coon: conn,
 		host: host,

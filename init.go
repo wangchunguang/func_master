@@ -60,8 +60,8 @@ var (
 	statis      = &Statis{}
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
-	sd          *ServiceDiscovery
-	poolMap     = make(map[string]*HttpPool)
+	gateWayMap  = make(map[string]map[string]*HttpPool)
+	cmdMap      = make(map[int]string)
 )
 
 func init() {
@@ -74,4 +74,5 @@ func init() {
 	DefLog.SetLevel(LogLevelInfo)
 	timerTick()
 	WeekStart = DateToUnix("2018-01-01 00:00:00") //2018/1/1
+
 }

@@ -533,3 +533,13 @@ func (tcp *tcpMsgQue) SeedWrite(data []byte) bool {
 	}
 	return true
 }
+
+// ClientConnect tcp客户端连接
+func ClientConnect(addr string, network string) (net.Conn, bool) {
+	c, err := net.DialTimeout(network, addr, time.Second)
+	if err != nil {
+		LogInfo("connect to addr:%s  err:%v", addr, err)
+		return nil, false
+	}
+	return c, true
+}

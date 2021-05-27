@@ -3,6 +3,7 @@ package func_master
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"reflect"
@@ -237,12 +238,11 @@ func TestEtcd_service(t *testing.T) {
 		return
 	}
 	defer ser.Close()
-	ser.WatchService("/web/")
-	ser.WatchService("/grpc/")
+	ser.WatchService("/")
 	for {
 		select {
 		case <-time.Tick(2 * time.Second):
-			//log.Println(ser.loadListServiceList())
+			log.Println(ser.loadListServiceList())
 		}
 	}
 }
