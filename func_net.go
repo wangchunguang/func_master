@@ -38,20 +38,7 @@ const (
 	MsgSendSize = 8
 )
 
-type HttpPool struct {
-	coon net.Conn
-	host string
-}
-
-func NewHttpPool(host string, conn net.Conn) *HttpPool {
-	pool := &HttpPool{
-		coon: conn,
-		host: host,
-	}
-	return pool
-}
-
-// http get请求
+// HttpGet http get请求
 func HttpGet(url string) (string, error, *http.Response) {
 	if len(url) == 0 {
 		return "", ErrHttpUrlNil, nil
@@ -76,7 +63,7 @@ func get(url string) (*http.Response, error) {
 	return resp, nil
 }
 
-// http post请求
+// HttpPost http post请求
 func HttpPost(url, applocation string, data []byte) (string, error, *http.Response) {
 	if len(url) == 0 {
 		return "", ErrHttpUrlNil, nil
@@ -93,7 +80,7 @@ func HttpPost(url, applocation string, data []byte) (string, error, *http.Respon
 	return string(readAll), nil, resp
 }
 
-// http Post设置超时请求
+// HttpPostTimeOut http Post设置超时请求
 func HttpPostTimeOut(url string, application string, data []byte) (string, error, *http.Response) {
 	if len(url) == 0 {
 		return "", ErrHttpUrlNil, nil

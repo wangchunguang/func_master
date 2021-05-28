@@ -91,8 +91,8 @@ func WaitForSystemExit(atexit ...func()) {
 	for _, v := range redisManagers {
 		v.close()
 	}
-	for _, value := range poolMap {
-		value.coon.Close()
+	for _, value := range serverMap {
+		value.Coon.Close()
 	}
 	WaitAllForRedis.Wait()
 	if !atomic.CompareAndSwapInt32(&stopForLog, 0, 1) {
@@ -102,7 +102,7 @@ func WaitForSystemExit(atexit ...func()) {
 	close(StopChanForLog)
 }
 
-// 守护进程
+// Daemon 守护进程
 func Daemon(skip ...string) {
 	if os.Getppid() != 1 {
 		abs, _ := filepath.Abs(os.Args[0])

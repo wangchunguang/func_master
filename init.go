@@ -60,8 +60,9 @@ var (
 	statis      = &Statis{}
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
-	gateWayMap  = make(map[string]map[string]*HttpPool)
 	cmdMap      = make(map[int]string)
+	serverMap   = make(map[string]*BalanceServer)
+	gateWayMap  = make(map[string]map[string]*BalanceServer)
 )
 
 func init() {

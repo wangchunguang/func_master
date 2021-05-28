@@ -1,6 +1,9 @@
 package func_master
 
-import "strings"
+import (
+	"net"
+	"strings"
+)
 
 // 负载均衡的实现
 // 实现算法：加权轮询负载均衡
@@ -10,6 +13,8 @@ type BalanceServer struct {
 	Host string
 	// 主机名称
 	Name string
+	// 连接服务
+	Coon net.Conn
 	// 该服务器的权重，一般采用的是cpu数量
 	Weight int
 	// 服务器目前的权重，初始值为0
@@ -27,7 +32,6 @@ type LoadBalance interface {
 }
 
 type LoadBalanceServerRoundRobin struct {
-	curName string
 	servers map[string]*BalanceServer
 }
 
@@ -39,30 +43,25 @@ func NewLoadBalanceServerRoundRobin(servers map[string]*BalanceServer) *LoadBala
 
 // UpdateServers 更新
 func (load *LoadBalanceServerRoundRobin) UpdateServers(servers map[string]*BalanceServer) {
-	server := make(map[string]*BalanceServer, 0)
 	for key, value := range servers {
 		split := strings.Split(key, "/")
-		poolmap, ok := gateWayMap[split[0]]
-		if !ok {
-			poolmap = make(map[string]*HttpPool)
-		}
+		serverMap, _ := gateWayMap[split[0]]
 		connect, b := ClientConnect(value.Host, "tcp")
 		if !b {
 			continue
 		}
-		poolmap[key] = NewHttpPool(key, connect)
-		gateWayMap[split[0]] = poolmap
-
 		s := &BalanceServer{
 			Host:            value.Host,
 			Name:            value.Name,
+			Coon:            connect,
 			Weight:          value.Weight,
 			CurrentWeight:   0,
 			EffectiveWeight: value.Weight,
 		}
-		server[value.Name] = s
+		serverMap[key] = s
+		gateWayMap[split[0]] = serverMap
 	}
-	load.servers = server
+	load.servers = serverMap
 }
 
 // Select 查询
@@ -80,7 +79,7 @@ func (load *LoadBalanceServerRoundRobin) Select() *BalanceServer {
 // 轮询获取服务
 func (load *LoadBalanceServerRoundRobin) nextServer(servers map[string]*BalanceServer) (best *BalanceServer) {
 	total := 0
-	for key, value := range servers {
+	for _, value := range servers {
 		//计算当前状态下所有节点的effectiveWeight之和totalWeight
 		total += value.EffectiveWeight
 		//	计算CurrentWeight
@@ -88,7 +87,6 @@ func (load *LoadBalanceServerRoundRobin) nextServer(servers map[string]*BalanceS
 		// 寻找权重最大值
 		if best == nil || best.CurrentWeight < value.CurrentWeight {
 			best = value
-			load.curName = key
 		}
 	}
 	if best == nil {
