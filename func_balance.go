@@ -7,7 +7,6 @@ import (
 
 // 负载均衡的实现
 // 实现算法：加权轮询负载均衡
-
 type BalanceServer struct {
 	//	 主机地址
 	Host string
@@ -43,9 +42,13 @@ func NewLoadBalanceServerRoundRobin(servers map[string]*BalanceServer) *LoadBala
 
 // UpdateServers 更新
 func (load *LoadBalanceServerRoundRobin) UpdateServers(servers map[string]*BalanceServer) {
+	serverMap := map[string]*BalanceServer{}
 	for key, value := range servers {
 		split := strings.Split(key, "/")
-		serverMap, _ := gateWayMap[split[0]]
+		serverMap, _ = gateWayMap[split[0]]
+		if len(serverMap) == 0 {
+			serverMap = make(map[string]*BalanceServer)
+		}
 		connect, b := ClientConnect(value.Host, "tcp")
 		if !b {
 			continue
@@ -79,6 +82,8 @@ func (load *LoadBalanceServerRoundRobin) Select() *BalanceServer {
 // 轮询获取服务
 func (load *LoadBalanceServerRoundRobin) nextServer(servers map[string]*BalanceServer) (best *BalanceServer) {
 	total := 0
+	ServerMutex.Lock()
+	defer ServerMutex.Unlock()
 	for _, value := range servers {
 		//计算当前状态下所有节点的effectiveWeight之和totalWeight
 		total += value.EffectiveWeight

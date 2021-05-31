@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"io/ioutil"
-	"net"
 )
 
 // 网关 它负责与客户端建立连接，接收客户端发送过来的消息，并对消息进行验证，分发等
@@ -77,14 +76,14 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 }
 
 // GateWayAddr 获取指定服务下，负载均衡获得的一个ip地址
-func GateWayAddr(host string) net.Conn {
+func GateWayAddr(host string) *BalanceServer {
 	if len(gateWayMap) == 0 {
 		return nil
 	}
 	if value, ok := gateWayMap[host]; ok {
 		load = &LoadBalanceServerRoundRobin{value}
 		server := load.Select()
-		return server.Coon
+		return server
 	}
 	return nil
 

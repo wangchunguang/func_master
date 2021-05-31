@@ -48,6 +48,7 @@ var (
 	MsgqueMapSync   sync.Mutex
 	WaitAll         = WaitGroup{}
 	AtexitMapSync   sync.Mutex
+	ServerMutex     sync.Mutex
 )
 
 var (
@@ -61,7 +62,6 @@ var (
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
 	cmdMap      = make(map[int]string)
-	serverMap   = make(map[string]*BalanceServer)
 	gateWayMap  = make(map[string]map[string]*BalanceServer)
 )
 

@@ -181,12 +181,15 @@ func (sd *ServiceDiscovery) EtcdServer(prefix string) error {
 		LogError("Service acquisition failed err :%s", err)
 		return err
 	}
-	for {
-		select {
-		case <-time.Tick(TIMEOUT * time.Second): // 每隔五秒运行一次
-			load = NewLoadBalanceServerRoundRobin(sd.NewEtcdToBalanceServer())
+	Go(func() {
+		for {
+			select {
+			case <-time.Tick(TIMEOUT * time.Second): // 每隔五秒运行一次
+				load = NewLoadBalanceServerRoundRobin(sd.NewEtcdToBalanceServer())
+			}
 		}
-	}
+	})
+	return nil
 }
 
 // NewEtcdToBalanceServer 组装轮询负载服务

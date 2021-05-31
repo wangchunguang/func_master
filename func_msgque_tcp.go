@@ -228,14 +228,14 @@ func (tcp *tcpMsgQue) readMsg() {
 	headData := make([]byte, MsgHeadSize)
 	var data []byte
 	var head *MessageHead
-	for !tcp.IsStop() && tcp.interactive {
+	for !tcp.IsStop() {
 		err := tcp.conn.SetReadDeadline(time.Now().Add(someTimeout))
 		if err != nil {
 			LogError("Failed to read transfer timeout err :%s", err)
 			break
 		}
 		if head == nil {
-			_, err := io.ReadFull(tcp.conn, headData)
+			_, err = io.ReadFull(tcp.conn, headData)
 			if err != nil {
 				if err != io.EOF {
 					LogDebug("msgque:%v recv data err:%v", tcp.id, err)
@@ -290,18 +290,21 @@ func (tcp *tcpMsgQue) write() {
 		tcp.Stop()
 	}()
 	tcp.wait.Add(1)
-	// 是否快速发送
-	//if tcp.sendFast {
-	//	//没有消息头
-	//	tcp.writeMsgFast()
-	//} else {
 	if tcp.connTyp == ConnTypeGateWay {
-
+		tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
+		for {
+			select {
+			case msg := <-tcp.cread:
+				tcp.gateWayWrite(msg)
+			case <-tick.C:
+				if tcp.isTimeout(tick) {
+					break
+				}
+			}
+		}
 	} else {
 		tcp.writeMsg()
 	}
-
-	//}
 
 }
 
@@ -398,6 +401,34 @@ func (tcp *tcpMsgQue) writeMsg() {
 
 }
 
+func (tcp *tcpMsgQue) gateWayWrite(msg *Message) {
+	writeCount := 0
+	hand := make([]byte, MsgHeadSize)
+	if value, ok := cmdMap[int(msg.Cmd())]; ok && !tcp.IsStop() {
+		addr := GateWayAddr(value)
+		msg.Head.FastBytes(hand)
+		write, err := addr.Coon.Write(hand[writeCount:])
+		if err != nil {
+			LogError("msgque write id:%v err:%v", tcp.id, err)
+			goto WriteStop
+		}
+		writeCount += write
+		if writeCount >= MsgHeadSize && msg.Data != nil {
+			write, err = addr.Coon.Write(msg.Data[writeCount-MsgHeadSize : int(msg.Head.Len)])
+			if err != nil {
+				LogError("msgque write id:%v err:%v", tcp.id, err)
+				goto WriteStop
+			}
+			writeCount += write
+		}
+		if writeCount == (int(msg.Head.Len) + MsgHeadSize) {
+			writeCount = 0
+		}
+	}
+WriteStop:
+	Stop()
+}
+
 func (tcp *tcpMsgQue) gateway() {
 	c := make(chan struct{})
 	Go2(func(cstop chan struct{}) {
@@ -425,7 +456,9 @@ func (tcp *tcpMsgQue) gateway() {
 			Go(func() {
 				tcp.readListen(msgque)
 			})
-
+			Go(func() {
+				tcp.waiteListen(msgque)
+			})
 		} else {
 			msgque.Stop()
 		}
@@ -443,9 +476,7 @@ func (tcp *tcpMsgQue) serverListen() {
 		}
 		tcp.listener.Close()
 	})
-	// 三次握手
-	tcp.ShakeHands()
-	for !tcp.IsStop() && tcp.interactive {
+	for !tcp.IsStop() {
 		accept, err := tcp.listener.Accept()
 		if err != nil {
 			if stop == 0 && tcp.stop == 0 {
@@ -474,7 +505,6 @@ func (tcp *tcpMsgQue) serverListen() {
 }
 
 func (tcp *tcpMsgQue) readListen(msgque *tcpMsgQue) {
-
 	LogInfo("process read for msgque:%d", msgque.id)
 	msgque.read()
 	LogInfo("process read end for msgque:%d", msgque.id)
@@ -482,7 +512,6 @@ func (tcp *tcpMsgQue) readListen(msgque *tcpMsgQue) {
 }
 
 func (tcp *tcpMsgQue) waiteListen(msgque *tcpMsgQue) {
-
 	LogInfo("process read for msgque:%d", msgque.id)
 	msgque.write()
 	LogInfo("process read end for msgque:%d", msgque.id)
@@ -508,7 +537,7 @@ func (tcp *tcpMsgQue) ShakeHands() bool {
 	if ok := tcp.SeedWrite(encrypt); ok {
 		tcp.SetInteractive()
 	}
-	return true
+	return tcp.interactive
 }
 
 // SeedWrite 写入加密种子到客户端
