@@ -104,5 +104,4 @@ func ReflectStruct(v interface{}, fun funcMessage) {
 			newsMap[value] = fun
 		}
 	}
-
 }

@@ -24,7 +24,7 @@ var MaxMsgDataSize uint32 = 1024 * 1024
 
 const (
 	// MsgHeadSize 消息头的大小
-	MsgHeadSize = 16
+	MsgHeadSize = 15
 )
 
 type MessageHead struct {
