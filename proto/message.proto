@@ -1,0 +1,18 @@
+syntax = "proto2";
+option go_package = "message";
+
+enum Message_Id {
+  GetUser = 0;
+  UpdateUser = 1;
+}
+
+message User{
+  required string user_id = 1;
+  required string name = 2;
+  required int32 age = 3;
+  optional string address = 4;
+  optional string phone = 5;
+  optional  string  Avatar = 6;
+  optional string remarks = 7;
+}
+

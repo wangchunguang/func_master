@@ -31,7 +31,6 @@ type MessageHead struct {
 	Len     uint32 //数据长度
 	Error   uint16 //错误码
 	Cmd     uint8  //命令
-	Act     uint8  //动作
 	Index   uint16 //序号
 	Flags   uint8  //标记
 	Bcc     uint8  //加密校验
@@ -43,7 +42,6 @@ func (mh *MessageHead) FastBytes(data []byte) []byte {
 	phead.Len = mh.Len
 	phead.Error = mh.Error
 	phead.Cmd = mh.Cmd
-	phead.Act = mh.Act
 	phead.Index = mh.Index
 	phead.Flags = mh.Flags
 	phead.Bcc = mh.Bcc
@@ -60,7 +58,6 @@ func (mh *MessageHead) Copy() *MessageHead {
 		Len:     mh.Len,
 		Error:   mh.Error,
 		Cmd:     mh.Cmd,
-		Act:     mh.Act,
 		Index:   mh.Index,
 		Flags:   mh.Flags,
 		Bcc:     mh.Bcc,
@@ -79,15 +76,11 @@ func (mh *MessageHead) Bytes() []byte {
 }
 
 func (mh *MessageHead) Tag() int {
-	return Tag(mh.Cmd, mh.Act, mh.Index)
-}
-
-func (mh *MessageHead) CmdAct() int {
-	return CmdAct(mh.Cmd, mh.Act)
+	return Tag(mh.Cmd, mh.Index)
 }
 
 func (mh *MessageHead) String() string {
-	return fmt.Sprintf("Len:%v Error:%v Cmd:%v Act:%v Index:%v Flags:%v", mh.Len, mh.Error, mh.Cmd, mh.Act, mh.Index, mh.Flags)
+	return fmt.Sprintf("Len:%v Error:%v Cmd:%v  Index:%v Flags:%v", mh.Len, mh.Error, mh.Cmd, mh.Index, mh.Flags)
 }
 
 // 解析请求头
@@ -137,14 +130,7 @@ func (m *Message) Error() uint16 {
 
 func (m *Message) Tag() int {
 	if m.Head != nil {
-		return Tag(m.Head.Cmd, m.Head.Act, m.Head.Index)
-	}
-	return 0
-}
-
-func (m *Message) CmdAct() int {
-	if m.Head != nil {
-		return CmdAct(m.Head.Cmd, m.Head.Act)
+		return Tag(m.Head.Cmd, m.Head.Index)
 	}
 	return 0
 }
@@ -152,13 +138,6 @@ func (m *Message) CmdAct() int {
 func (m *Message) Cmd() uint8 {
 	if m.Head != nil {
 		return m.Head.Cmd
-	}
-	return 0
-}
-
-func (m *Message) Act() uint8 {
-	if m.Head != nil {
-		return m.Head.Act
 	}
 	return 0
 }
@@ -194,7 +173,6 @@ func (m *Message) Bytes() []byte {
 func (m *Message) CopyTag(old *Message) *Message {
 	if m.Head != nil && old.Head != nil {
 		m.Head.Cmd = old.Head.Cmd
-		m.Head.Act = old.Head.Act
 		m.Head.Index = old.Head.Index
 	}
 	return m
@@ -230,7 +208,6 @@ func NewMsg(cmd, act uint8, index, err uint16, data []byte) *Message {
 			Len:   uint32(len(data)),
 			Error: err,
 			Cmd:   cmd,
-			Act:   act,
 			Index: index,
 		},
 		Data: data,
@@ -242,7 +219,6 @@ func NewTagMsg(cmd, act uint8, index uint16) *Message {
 	return &Message{
 		Head: &MessageHead{
 			Cmd:   cmd,
-			Act:   act,
 			Index: index,
 		},
 	}

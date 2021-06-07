@@ -13,12 +13,8 @@ import (
 	"time"
 )
 
-func Tag(cmd, act uint8, index uint16) int {
-	return int(cmd)<<16 + int(act)<<8 + int(index)
-}
-
-func CmdAct(cmd, act uint8) int {
-	return int(cmd)<<8 + int(act)
+func Tag(cmd uint8, index uint16) int {
+	return int(cmd)<<16 + int(index)
 }
 
 func Stop() {
@@ -91,9 +87,7 @@ func WaitForSystemExit(atexit ...func()) {
 	for _, v := range redisManagers {
 		v.close()
 	}
-	for _, value := range serverMap {
-		value.Coon.Close()
-	}
+
 	WaitAllForRedis.Wait()
 	if !atomic.CompareAndSwapInt32(&stopForLog, 0, 1) {
 		return

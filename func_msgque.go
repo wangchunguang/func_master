@@ -292,7 +292,7 @@ func (mq *msgQue) baseStop() {
 // 处理消息  网关才会处理消息加密加压，内部通信没有消息加密和解压
 func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 	//作为客户端时--robot
-	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 && msg.Head.Act == 0 {
+	if mq.connTyp == ConnTypeConn && msg.Head.Cmd == 0 {
 		if len(msg.Data) != 8 {
 			LogWarn("init seed msg err")
 			return false
@@ -315,7 +315,7 @@ func (mq *msgQue) processMsg(msgque IMsgQue, msg *Message) bool {
 	if msg.Head != nil && msg.Head.Flags&FlagCompress > 0 && msg.Data != nil && mq.connTyp == ConnTypeGateWay {
 		data, err := GZipUnCompress(msg.Data)
 		if err != nil {
-			LogError("msgque uncompress failed msgque:%v cmd:%v act:%v len:%v err:%v", msgque.Id(), msg.Head.Cmd, msg.Head.Act, msg.Head.Len, err)
+			LogError("msgque uncompress failed msgque:%v cmd:%v len:%v err:%v", msgque.Id(), msg.Head.Cmd, msg.Head.Len, err)
 			return false
 		}
 		msg.Data = data
@@ -389,7 +389,7 @@ type IMsgRegister interface {
 
 // Def的消息处理
 type DefMsgHandler struct {
-	msgMap  map[int]HandlerFunc
+	msgMap  map[uint8]HandlerFunc
 	typeMap map[reflect.Type]HandlerFunc
 }
 
@@ -415,14 +415,14 @@ func (r *DefMsgHandler) GetHandlerFunc(msgque IMsgQue, msg *Message) HandlerFunc
 		return r.OnProcessMsg
 	}
 	// 获取计算动作与指令组合的数据为0
-	if msg.CmdAct() == 0 {
+	if msg.Cmd() == 0 {
 		if r.typeMap != nil {
 			if f, ok := r.typeMap[reflect.TypeOf(msg.C2S())]; ok {
 				return f
 			}
 		}
 	} else if r.msgMap != nil { // 消息map里面有初始化的消息
-		if f, ok := r.msgMap[msg.CmdAct()]; ok {
+		if f, ok := r.msgMap[msg.Cmd()]; ok {
 			return f
 		}
 
@@ -431,17 +431,17 @@ func (r *DefMsgHandler) GetHandlerFunc(msgque IMsgQue, msg *Message) HandlerFunc
 
 }
 
-func (r *DefMsgHandler) Register(cmd, act uint8, fun HandlerFunc) {
+func (r *DefMsgHandler) Register(cmd uint8, fun HandlerFunc) {
 	if r.msgMap == nil {
-		r.msgMap = map[int]HandlerFunc{}
+		r.msgMap = map[uint8]HandlerFunc{}
 	}
-	r.msgMap[CmdAct(cmd, act)] = fun
+	r.msgMap[cmd] = fun
 }
 
 func (r *DefMsgHandler) RegisterMsg(v interface{}, fun HandlerFunc) {
 	msgType := reflect.TypeOf(v)
 	if msgType != nil && msgType.Kind() != reflect.Ptr {
-		LogFatal("message pointer required")
+		LogFatal("message.proto pointer required")
 		return
 	}
 	if r.typeMap == nil {

@@ -78,7 +78,7 @@ type IParser interface {
 type Parser struct {
 	Type    ParserType
 	ErrType ParseErrType
-	msgMap  map[int]MsgParser
+	msgMap  map[uint8]MsgParser
 	parser  IParser
 }
 
@@ -97,17 +97,17 @@ func (p *Parser) GetErrType() ParseErrType {
 	return p.ErrType
 }
 
-func (p *Parser) RegisterFunc(cmd, act uint8, c2sFunc ParseFunc, s2cFunc ParseFunc) {
+func (p *Parser) RegisterFunc(cmd uint8, c2sFunc ParseFunc, s2cFunc ParseFunc) {
 	if p.msgMap == nil {
-		p.msgMap = map[int]MsgParser{}
+		p.msgMap = map[uint8]MsgParser{}
 	}
-	p.msgMap[CmdAct(cmd, act)] = MsgParser{c2sFunc: c2sFunc, s2cFunc: s2cFunc}
+	p.msgMap[cmd] = MsgParser{c2sFunc: c2sFunc, s2cFunc: s2cFunc}
 }
 
-// 寄存器
-func (p *Parser) Register(cmd, act uint8, c2s interface{}, s2c interface{}) {
+// Register 寄存器
+func (p *Parser) Register(cmd uint8, c2s interface{}, s2c interface{}) {
 	if p.msgMap == nil {
-		p.msgMap = map[int]MsgParser{}
+		p.msgMap = map[uint8]MsgParser{}
 	}
 	pm := MsgParser{}
 	if c2s != nil {
@@ -122,5 +122,5 @@ func (p *Parser) Register(cmd, act uint8, c2s interface{}, s2c interface{}) {
 			return reflect.New(s2cType).Interface()
 		}
 	}
-	p.msgMap[CmdAct(cmd, act)] = pm
+	p.msgMap[cmd] = pm
 }

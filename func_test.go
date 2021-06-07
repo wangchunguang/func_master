@@ -281,3 +281,32 @@ func TestLoadBalanceWeightedRoundRobin_Select(t *testing.T) {
 	Sleep(10000)
 
 }
+
+type teacher struct {
+}
+
+func (t *teacher) Num(bun float32) {
+
+}
+
+func (t *teacher) Set(bun float64) {
+
+}
+func (t *teacher) Get(i int) {
+
+}
+
+func TestStrEqualFold(t *testing.T) {
+	te := &teacher{}
+	demo1(te)
+
+}
+
+func demo1(v interface{}) {
+	of := reflect.TypeOf(v)
+	fmt.Println(of.NumMethod())
+	for i := 0; i < of.NumMethod(); i++ {
+		fmt.Println(of.Method(i).Name)
+		fmt.Println(of.Method(i).Type)
+	}
+}

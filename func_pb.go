@@ -109,7 +109,7 @@ func ParseJsonStr(str string, v proto.Message) bool {
 	return true
 }
 
-// protobuf 的解析器
+// proto 的解析器
 type pBParser struct {
 	*Parser
 }
@@ -123,7 +123,7 @@ func (r *pBParser) ParseC2S(msg *Message) (IMsgParser, error) {
 	if msg.Head.Flags&FlagNoParse > 0 {
 		return nil, nil
 	}
-	if p, ok := r.msgMap[msg.Head.CmdAct()]; ok {
+	if p, ok := r.msgMap[msg.Head.Cmd]; ok {
 		if p.C2S() != nil {
 			if err := PBUnPack(msg.Data, p.C2S()); err != nil {
 				return nil, err

@@ -243,7 +243,7 @@ func (tcp *tcpMsgQue) readMsg() {
 				break
 			}
 			if head = NewMessageHead(headData); head == nil {
-				LogInfo("Did not get the data of the message header headDate  :%s", headData)
+				LogInfo("Did not get the data of the message.proto header headDate  :%s", headData)
 				break
 			}
 			// 当客户端请求过来，没有网关分发的标识，直接返回
@@ -255,7 +255,7 @@ func (tcp *tcpMsgQue) readMsg() {
 			}
 			if head.Len == 0 {
 				if !tcp.processMsg(tcp, &Message{Head: head}) {
-					LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
+					LogError("msgque:%v process msg cmd:%v", tcp.id, head.Cmd)
 					break
 				}
 				head = nil
@@ -263,13 +263,13 @@ func (tcp *tcpMsgQue) readMsg() {
 				data = make([]byte, head.Len)
 			}
 		} else {
-			_, err := io.ReadFull(tcp.conn, data)
+			_, err = io.ReadFull(tcp.conn, data)
 			if err != nil {
 				LogError("msgque:%v recv data err:%v", tcp.id, err)
 				break
 			}
 			if !tcp.processMsg(tcp, &Message{Head: head, Data: data}) {
-				LogError("msgque:%v process msg cmd:%v act:%v", tcp.id, head.Cmd, head.Act)
+				LogError("msgque:%v process msg cmd:%v ", tcp.id, head.Cmd)
 				break
 			}
 			head = nil
