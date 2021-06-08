@@ -201,7 +201,7 @@ func (mq *msgQue) setCallback(tag int, c chan *Message) {
 
 }
 
-// 设置种子
+// SetSeed 设置客种子
 func (mq *msgQue) SetSeed(data []byte) {
 	mq.oseed = uint32(Timestamp)
 	mq.iseed = binary.BigEndian.Uint32(data)

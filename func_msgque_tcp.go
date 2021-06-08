@@ -530,10 +530,11 @@ func (tcp *tcpMsgQue) ShakeHands() bool {
 		return false
 	}
 	tcp.SetSeed(iseedData)
-	binary.LittleEndian.PutUint32(seedData[:4], tcp.iseed)
-	binary.LittleEndian.PutUint32(seedData[4:], tcp.oseed)
+	binary.BigEndian.PutUint32(seedData[:4], tcp.iseed)
+	binary.BigEndian.PutUint32(seedData[4:], tcp.oseed)
+	tcp.SeedWrite(seedData[:4])
+
 	encrypt := DefaultNetEncrypt(tcp.iseed, seedData, 0, MsgSendSize)
-	tcp.SeedWrite(encrypt)
 	if ok := tcp.SeedWrite(encrypt); ok {
 		tcp.SetInteractive()
 	}

@@ -14,7 +14,7 @@ import (
 // 	3. 服务器接收到客户端生成的种子，推送到客户端形成三次握手
 
 // DefaultNetDecrypt 解密
-// seed 加密解密种子，  buf 数据，开始的下标位置 长度
+// seed 解密种子，  buf 数据，开始的下标位置 长度
 func DefaultNetDecrypt(seed uint32, buf []byte, offset uint32, len uint32) []byte {
 	if len < offset {
 		LogError("Decryption length is not enough")

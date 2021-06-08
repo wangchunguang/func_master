@@ -310,3 +310,15 @@ func demo1(v interface{}) {
 		fmt.Println(of.Method(i).Type)
 	}
 }
+
+func TestDateToUnix(t *testing.T) {
+	//b := []byte{'y','s',3}
+	//fmt.Println(b)
+	//b = append([]byte{0},b...)
+	//fmt.Println(len(b))
+	//fmt.Println(b)
+
+	toByte, _ := IntToByte(5435, 4)
+	fmt.Println(toByte)
+	fmt.Println(len(toByte))
+}
