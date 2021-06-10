@@ -519,49 +519,73 @@ func (tcp *tcpMsgQue) waiteListen(msgque *tcpMsgQue) {
 }
 
 // ShakeHands 三次握手
-func (tcp *tcpMsgQue) ShakeHands() bool {
+func (tcp *tcpMsgQue) ShakeHands() {
 	// 客户端加密种子数据
 	iseedData := make([]byte, MsgClientSendSize)
 	// 加密种子
 	seedData := make([]byte, MsgSendSize)
-	_, err := io.ReadFull(tcp.conn, iseedData)
-	if err != nil {
-		LogError("Failed to receive client encrypted seed err :%s", err)
-		return false
-	}
+	// 接收第三次握手客户端发送过来的加密种子
+	data := make([]byte, MsgSendSize)
+	tcp.SeedRead(iseedData)
 	tcp.SetSeed(iseedData)
 	binary.BigEndian.PutUint32(seedData[:4], tcp.iseed)
 	binary.BigEndian.PutUint32(seedData[4:], tcp.oseed)
-	tcp.SeedWrite(seedData[:4])
-
-	encrypt := DefaultNetEncrypt(tcp.iseed, seedData, 0, MsgSendSize)
-	if ok := tcp.SeedWrite(encrypt); ok {
-		tcp.SetInteractive()
+	err := tcp.SeedWrite(seedData[:4])
+	if err != nil {
+		Stop()
+		return
 	}
-	return tcp.interactive
+	tcp.SeedRead(data)
+	// 解密判断数据是否正确
+	decrypt := DefaultNetDecrypt(tcp.iseed, data, 0, MsgSendSize)
+	iseed := binary.BigEndian.Uint32(decrypt[:4])
+	oseed := binary.BigEndian.Uint32(decrypt[4:])
+	if tcp.iseed != iseed || tcp.oseed != oseed {
+		return
+	}
+	tcp.SetInteractive()
+}
+
+// SeedRead 读取客户端种子
+func (tcp *tcpMsgQue) SeedRead(data []byte) {
+	// 读取计数
+	readCount := 0
+	read, err := tcp.conn.Read(data)
+	if err != nil {
+		LogError("Failed to set timeout err :%s", err)
+		Stop()
+		return
+	}
+	readCount += read
+	if readCount < len(data) {
+		_, err = tcp.conn.Read(data[readCount:])
+		if err != nil {
+			Stop()
+		}
+	}
 }
 
 // SeedWrite 写入加密种子到客户端
-func (tcp *tcpMsgQue) SeedWrite(data []byte) bool {
+func (tcp *tcpMsgQue) SeedWrite(data []byte) error {
 	// 写入计数
 	writeCount := 0
 	err := tcp.conn.SetWriteDeadline(time.Now().Add(TIMEOUT * time.Second))
 	if err != nil {
 		LogError("Failed to set timeout err :%s", err)
-		return false
+		return err
 	}
 	write, err := tcp.conn.Write(data)
 	if err != nil {
 		LogError("Failed to write to the client err :%s", err)
-		return false
+		return err
 	}
 	writeCount += write
-	if writeCount < write {
-		_, err := tcp.conn.Write(data[writeCount:])
+	if writeCount < len(data) {
+		_, err = tcp.conn.Write(data[writeCount:])
 		LogError("Failed to write to the client err :%s", err)
-		return false
+		return err
 	}
-	return true
+	return nil
 }
 
 // ClientConnect tcp客户端连接
