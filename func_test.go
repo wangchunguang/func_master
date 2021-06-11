@@ -327,3 +327,9 @@ func TestDateToUnix(t *testing.T) {
 	//fmt.Println(toByte)
 	//fmt.Println(len(toByte))
 }
+
+func TestNewWorker(t *testing.T) {
+	worker = NewWorker(1)
+	fmt.Println(worker.GetId())
+
+}

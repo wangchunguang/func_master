@@ -1,7 +1,6 @@
 package func_master
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
@@ -24,15 +23,16 @@ type Worker struct {
 	Number    int64 // 当前毫秒生成的序列号，从0开始叠加，1毫秒最多生成4096个id
 }
 
-func NewWorker(workerId int64) (*Worker, error) {
+func NewWorker(workerId int64) *Worker {
 	if workerId < 0 || workerId > workerMax {
-		return nil, errors.New("Worker ID excess of quantity")
+		panic("Worker ID excess of quantity")
+		return nil
 	}
 	//	 生成新的节点
 	return &Worker{
 		Timestamp: 0,
 		WorkerId:  workerId,
-		Number:    0}, nil
+		Number:    0}
 }
 
 func (w *Worker) GetId() int64 {

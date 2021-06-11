@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	MACHINE_ID = int64(1)
+)
+
 var DefLog *Log //日志
 
 type Statis struct {
@@ -23,7 +27,6 @@ var (
 	goid        uint32
 	stop        int32 //停止标志
 	poolGoCount int32
-	msgqueId    uint32     //消息队列id
 	etcdTimeout uint32 = 5 // 连接etcd的超时时间
 	maxCpuNum   int        // cpu数量
 
@@ -52,18 +55,22 @@ var (
 )
 
 var (
+	msgqueMap  = map[int64]IMsgQue{}
+	atexitMap  = map[uint32]func(){}
+	cmdMap     = make(map[int]string)
+	gateWayMap = make(map[string]map[string]*BalanceServer)
+	newsMap    = make(map[int32]funcMessage)
+)
+
+var (
 	stopCheckMap = struct {
 		sync.Mutex
 		M map[uint64]string
 	}{M: map[uint64]string{}}
-	msgqueMap   = map[uint32]IMsgQue{}
-	atexitMap   = map[uint32]func(){}
 	statis      = &Statis{}
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
-	cmdMap      = make(map[int]string)
-	gateWayMap  = make(map[string]map[string]*BalanceServer)
-	newsMap     = make(map[int32]funcMessage)
+	worker      *Worker
 )
 
 func init() {
@@ -75,6 +82,8 @@ func init() {
 	DefLog = NewLog(10000, &ConsoleLogger{true})
 	DefLog.SetLevel(LogLevelInfo)
 	timerTick()
+	worker = NewWorker(MACHINE_ID)
+
 	WeekStart = DateToUnix("2018-01-01 00:00:00") //2018/1/1
 
 }

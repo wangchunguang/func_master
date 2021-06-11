@@ -106,7 +106,7 @@ func (tcp *tcpMsgQue) Connect() bool {
 func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, parser *Parser, addr string) *tcpMsgQue {
 	msg := tcpMsgQue{
 		msgQue: msgQue{
-			id:            atomic.AddUint32(&msgqueId, 1),
+			id:            worker.GetId(),
 			msgTyp:        msgtyp,
 			handler:       handler,
 			parserFactory: parser,
@@ -124,7 +124,7 @@ func NewTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, pa
 func newTcpConn(network, addr string, conn net.Conn, msgtyp MsgType, handler IMsgHandler, parser *Parser, user interface{}) *tcpMsgQue {
 	msgque := tcpMsgQue{
 		msgQue: msgQue{
-			id:            atomic.AddUint32(&msgqueId, 1),
+			id:            worker.GetId(),
 			cwrite:        make(chan *Message, 64),
 			cread:         make(chan *Message, 64),
 			msgTyp:        msgtyp,
@@ -152,7 +152,7 @@ func newTcpConn(network, addr string, conn net.Conn, msgtyp MsgType, handler IMs
 func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Parser) *tcpMsgQue {
 	msgque := tcpMsgQue{
 		msgQue: msgQue{
-			id:            atomic.AddUint32(&msgqueId, 1),
+			id:            worker.GetId(),
 			cwrite:        make(chan *Message, 64),
 			cread:         make(chan *Message, 64),
 			msgTyp:        msgty,
@@ -182,7 +182,7 @@ func newTcpAccept(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Par
 func newTcpGateWay(conn net.Conn, msgty MsgType, handler IMsgHandler, parser *Parser) *tcpMsgQue {
 	msg := tcpMsgQue{
 		msgQue: msgQue{
-			id:            atomic.AddUint32(&msgqueId, 1),
+			id:            worker.GetId(),
 			cwrite:        make(chan *Message, 64),
 			cread:         make(chan *Message, 64),
 			msgTyp:        msgty,

@@ -36,7 +36,7 @@ const (
 )
 
 type IMsgQue interface {
-	Id() uint32
+	Id() int64
 	GetMsgType() MsgType
 	GetConnType() ConnType
 	GetNetType() NetType
@@ -72,7 +72,7 @@ type IMsgQue interface {
 
 type msgQue struct {
 	sync.Map
-	id            uint32        //唯一标示
+	id            int64         //唯一标示
 	cwrite        chan *Message //写入通道
 	stop          int32         //停止标记
 	msgTyp        MsgType       //消息类型
@@ -102,7 +102,7 @@ func (mq *msgQue) SetSendFast() {
 }
 
 // 返回通道的id
-func (mq *msgQue) Id() uint32 {
+func (mq *msgQue) Id() int64 {
 	return mq.id
 }
 
