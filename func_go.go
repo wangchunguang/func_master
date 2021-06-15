@@ -1,6 +1,7 @@
 package func_master
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -30,12 +31,6 @@ func Go(fn func()) {
 	})
 }
 
-func Go2(fn func(cstop chan struct{})) {
-	Go(func() {
-		Try(func() { fn(StopChanForGo) })
-	})
-}
-
 func RunGO() {
 	for {
 		select {
@@ -55,6 +50,7 @@ func Try(fn func()) {
 			LogError("error catch = %v", err)
 		}
 	}()
+	fmt.Println(11111)
 	fn()
 	WaitAll.Done()
 }

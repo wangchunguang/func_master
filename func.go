@@ -21,7 +21,6 @@ func Stop() {
 	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
 		return
 	}
-	close(StopChanForGo)
 	for sc := 0; !WaitAll.TryWait(); sc++ {
 		Sleep(1)
 		if sc >= 3000 {

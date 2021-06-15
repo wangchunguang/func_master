@@ -317,7 +317,6 @@ func (tcp *tcpMsgQue) writeMsgFast() {
 		if m == nil {
 			// 当StopChanForGo 没有被关闭，或者100秒以内没有接受到数据，就会进行关闭
 			select {
-			case <-StopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
 					data = m.Data
@@ -356,7 +355,6 @@ func (tcp *tcpMsgQue) writeMsg() {
 	for !IsStop() || m != nil {
 		if m == nil {
 			select {
-			case <-StopChanForGo:
 			case m = <-tcp.cwrite:
 				if m != nil {
 					if tcp.encrypt && m.Head != nil && m.Head.Cmd != 0 {
@@ -431,16 +429,14 @@ WriteStop:
 
 func (tcp *tcpMsgQue) gateway() {
 	c := make(chan struct{})
-	Go2(func(cstop chan struct{}) {
+	Go(func() {
 		select {
-		case <-cstop:
 		case <-c:
 		}
 		tcp.listener.Close()
 	})
-	// 三次握手
-	tcp.ShakeHands()
-	for !tcp.IsStop() && tcp.interactive {
+
+	for !tcp.IsStop() {
 		accept, err := tcp.listener.Accept()
 		if err != nil {
 			if stop == 0 && tcp.stop == 0 {
@@ -449,7 +445,13 @@ func (tcp *tcpMsgQue) gateway() {
 			break
 		}
 		msgque := newTcpGateWay(accept, tcp.msgTyp, tcp.handler, tcp.parserFactory)
+		// 三次握手
+		msgque.ShakeHands()
+		if !tcp.interactive {
+			break
+		}
 		msgque.SetEncrypt(tcp.GetEncrypt())
+		// 表示是否有新的消息队列
 		if tcp.handler.OnNewMsgQue(msgque) {
 			msgque.init = true
 			msgque.available = true
@@ -469,9 +471,8 @@ func (tcp *tcpMsgQue) gateway() {
 
 func (tcp *tcpMsgQue) serverListen() {
 	c := make(chan struct{})
-	Go2(func(cstop chan struct{}) {
+	Go(func() {
 		select {
-		case <-cstop:
 		case <-c:
 		}
 		tcp.listener.Close()
@@ -526,12 +527,15 @@ func (tcp *tcpMsgQue) ShakeHands() {
 	seedData := make([]byte, MsgSendSize)
 	// 接收第三次握手客户端发送过来的加密种子
 	data := make([]byte, MsgSendSize)
+	// 第一次不用解密 因为不知道客户端的种子
 	tcp.SeedRead(iseedData)
 	tcp.SetSeed(iseedData)
 	binary.BigEndian.PutUint32(seedData[:4], tcp.iseed)
 	binary.BigEndian.PutUint32(seedData[4:], tcp.oseed)
-	err := tcp.SeedWrite(seedData[:4])
+	// 本次发送不需要加密，因为客户端还为获取服务器端的种子
+	err := tcp.SeedWrite(seedData)
 	if err != nil {
+		LogError("Failed to receive client encrypted seed err :%s", err)
 		Stop()
 		return
 	}
@@ -550,7 +554,7 @@ func (tcp *tcpMsgQue) ShakeHands() {
 func (tcp *tcpMsgQue) SeedRead(data []byte) {
 	// 读取计数
 	readCount := 0
-	read, err := tcp.conn.Read(data)
+	read, err := io.ReadFull(tcp.conn, data)
 	if err != nil {
 		LogError("Failed to set timeout err :%s", err)
 		Stop()
@@ -558,9 +562,10 @@ func (tcp *tcpMsgQue) SeedRead(data []byte) {
 	}
 	readCount += read
 	if readCount < len(data) {
-		_, err = tcp.conn.Read(data[readCount:])
+		_, err = io.ReadFull(tcp.conn, data[readCount:])
 		if err != nil {
 			Stop()
+			return
 		}
 	}
 }
@@ -574,14 +579,15 @@ func (tcp *tcpMsgQue) SeedWrite(data []byte) error {
 		LogError("Failed to set timeout err :%s", err)
 		return err
 	}
-	write, err := tcp.conn.Write(data)
+
+	write, err := io.ReadFull(tcp.conn, data)
 	if err != nil {
 		LogError("Failed to write to the client err :%s", err)
 		return err
 	}
 	writeCount += write
 	if writeCount < len(data) {
-		_, err = tcp.conn.Write(data[writeCount:])
+		_, err = io.ReadFull(tcp.conn, data[writeCount:])
 		LogError("Failed to write to the client err :%s", err)
 		return err
 	}

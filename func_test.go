@@ -161,13 +161,11 @@ func TestWaitForSystemExit2(t *testing.T) {
 	go demo(c)
 	for {
 		select {
-		case <-StopChanForGo:
-			fmt.Println(111111111)
 		case n := <-c:
 			fmt.Println(n)
 
 		default:
-
+			fmt.Println(222222)
 		}
 	}
 	select {}

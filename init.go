@@ -29,7 +29,7 @@ var (
 	poolGoCount int32
 	etcdTimeout uint32 = 5 // 连接etcd的超时时间
 	maxCpuNum   int        // cpu数量
-
+	onec        int
 )
 
 var (
