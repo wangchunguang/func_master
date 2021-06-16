@@ -294,6 +294,7 @@ func (tcp *tcpMsgQue) write() {
 		tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
 		for {
 			select {
+			// 将数据发布到指定的服务
 			case msg := <-tcp.cread:
 				tcp.gateWayWrite(msg)
 			case <-tick.C:
@@ -402,7 +403,8 @@ func (tcp *tcpMsgQue) writeMsg() {
 func (tcp *tcpMsgQue) gateWayWrite(msg *Message) {
 	writeCount := 0
 	hand := make([]byte, MsgHeadSize)
-	if value, ok := cmdMap[int(msg.Cmd())]; ok && !tcp.IsStop() {
+	// 判断是否有这个服务地址
+	if value, ok := serverMap[ServerName]; ok && !tcp.IsStop() {
 		addr := GateWayAddr(value)
 		msg.Head.FastBytes(hand)
 		write, err := addr.Coon.Write(hand[writeCount:])

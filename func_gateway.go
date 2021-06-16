@@ -80,11 +80,7 @@ func GateWayAddr(host string) *BalanceServer {
 	if len(gateWayMap) == 0 {
 		return nil
 	}
-	if value, ok := gateWayMap[host]; ok {
-		load = &LoadBalanceServerRoundRobin{value}
-		server := load.Select()
-		return server
-	}
-	return nil
+	load = &LoadBalanceServerRoundRobin{gateWayMap}
+	return load.Select(host)
 
 }

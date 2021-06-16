@@ -29,15 +29,16 @@ var (
 	poolGoCount int32
 	etcdTimeout uint32 = 5 // 连接etcd的超时时间
 	maxCpuNum   int        // cpu数量
-	onec        int
+
 )
 
 var (
-	StartTick int64
-	NowTick   int64
-	Timestamp int64
-	WeekStart int64  = 1514736000 //修正:不同时区不同
-	HostName  string              // 服务名称前缀，同一个服务多台机器上面部署，所以通过服务前缀，去获取这个服务的所有ip端口，
+	StartTick  int64
+	NowTick    int64
+	Timestamp  int64
+	WeekStart  int64  = 1514736000 //修正:不同时区不同
+	HostName   string              // 服务名称前缀，同一个服务多台机器上面部署，所以通过服务前缀，去获取这个服务的所有ip端口，
+	ServerName string
 )
 
 var (
@@ -57,7 +58,7 @@ var (
 var (
 	msgqueMap  = map[int64]IMsgQue{}
 	atexitMap  = map[uint32]func(){}
-	cmdMap     = make(map[int]string)
+	serverMap  = make(map[string]string)
 	gateWayMap = make(map[string]map[string]*BalanceServer)
 	newsMap    = make(map[int32]funcMessage)
 )
@@ -71,6 +72,7 @@ var (
 	someTimeout = 300 * time.Second // 长连接时间
 	load        *LoadBalanceServerRoundRobin
 	worker      *Worker
+	serd        *ServiceDiscovery
 )
 
 func init() {
@@ -83,7 +85,8 @@ func init() {
 	DefLog.SetLevel(LogLevelInfo)
 	timerTick()
 	worker = NewWorker(MACHINE_ID)
-
 	WeekStart = DateToUnix("2018-01-01 00:00:00") //2018/1/1
+	// 初始化etcd服务发现，初始化json解析
+	NewConfigToEtcd()
 
 }

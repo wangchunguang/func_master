@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-// 负载均衡的实现
+// BalanceServer 负载均衡的实现
 // 实现算法：加权轮询负载均衡
 type BalanceServer struct {
 	//	 主机地址
 	Host string
 	// 主机名称
 	Name string
-	// 连接服务
+	// 读取服务
 	Coon net.Conn
 	// 该服务器的权重，一般采用的是cpu数量
 	Weight int
@@ -31,7 +31,7 @@ type LoadBalance interface {
 }
 
 type LoadBalanceServerRoundRobin struct {
-	servers map[string]*BalanceServer
+	servers map[string]map[string]*BalanceServer
 }
 
 // NewLoadBalanceServerRoundRobin 初始化
@@ -42,41 +42,46 @@ func NewLoadBalanceServerRoundRobin(servers map[string]*BalanceServer) *LoadBala
 
 // UpdateServers 更新
 func (load *LoadBalanceServerRoundRobin) UpdateServers(servers map[string]*BalanceServer) {
-	serverMap := map[string]*BalanceServer{}
+	balanceMap := map[string]*BalanceServer{}
 	for key, value := range servers {
+		// 每个服务都会有多台服务器，例如 route/1  route/2 ...
 		split := strings.Split(key, "/")
-		serverMap, _ = gateWayMap[split[0]]
-		if len(serverMap) == 0 {
-			serverMap = make(map[string]*BalanceServer)
+		// gateWayMap里面 每一个服务发布了多个服务，
+		balanceMap, _ = gateWayMap[split[0]]
+		if len(balanceMap) == 0 {
+			balanceMap = make(map[string]*BalanceServer)
 		}
-		connect, b := ClientConnect(value.Host, "tcp")
+		conn, b := ClientConnect(value.Host, "tcp")
 		if !b {
 			continue
 		}
 		s := &BalanceServer{
 			Host:            value.Host,
 			Name:            value.Name,
-			Coon:            connect,
+			Coon:            conn,
 			Weight:          value.Weight,
 			CurrentWeight:   0,
 			EffectiveWeight: value.Weight,
 		}
-		serverMap[key] = s
-		gateWayMap[split[0]] = serverMap
+		balanceMap[key] = s
+		gateWayMap[split[0]] = balanceMap
 	}
-	load.servers = serverMap
+	load.servers = gateWayMap
 }
 
 // Select 查询
-func (load *LoadBalanceServerRoundRobin) Select() *BalanceServer {
+func (load *LoadBalanceServerRoundRobin) Select(addr string) *BalanceServer {
 	if len(load.servers) == 0 {
 		return nil
 	}
-	s := load.nextServer(load.servers)
-	if s == nil {
-		return nil
+	if value, ok := load.servers[addr]; ok {
+		s := load.nextServer(value)
+		if s == nil {
+			return nil
+		}
+
 	}
-	return s
+	return nil
 }
 
 // 轮询获取服务

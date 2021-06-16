@@ -271,7 +271,7 @@ func TestLoadBalanceWeightedRoundRobin_Select(t *testing.T) {
 
 	lb := NewLoadBalanceServerRoundRobin(servers)
 	for i := 0; i < 10; i++ {
-		_ = lb.Select()
+		_ = lb.Select("route")
 		//fmt.Println(s)
 		lb.ToString()
 	}

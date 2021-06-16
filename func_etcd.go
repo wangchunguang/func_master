@@ -108,9 +108,9 @@ func NewServiceDiscovery(endpoints []string) (*ServiceDiscovery, error) {
 }
 
 // WatchService 监视和初始化服务器列表
-func (sd *ServiceDiscovery) WatchService(prefix string) error {
+func (sd *ServiceDiscovery) WatchService(key string) error {
 	//	根据前缀获取现有的key
-	response, err := sd.cli.Get(context.Background(), prefix, clientv3.WithPrefix())
+	response, err := sd.cli.Get(context.Background(), key, clientv3.WithPrefix())
 	if err != nil {
 		LogError("Get data error err :%s", err)
 		return err
@@ -119,7 +119,7 @@ func (sd *ServiceDiscovery) WatchService(prefix string) error {
 		sd.setServiceList(string(kv.Key), string(kv.Value))
 	}
 	//	监听前缀，表示是否随时进行修改
-	go sd.watcher(prefix)
+	go sd.watcher(key)
 	return nil
 }
 
@@ -175,10 +175,9 @@ func (sd *ServiceDiscovery) Close() error {
 }
 
 // EtcdServer 将etcd服务组装 进行轮询负载获取对应的ip
-func (sd *ServiceDiscovery) EtcdServer(prefix string) error {
-	err := sd.WatchService(prefix)
+func (sd *ServiceDiscovery) EtcdServer(key string) error {
+	err := sd.WatchService(key)
 	if err != nil {
-		LogError("Service acquisition failed err :%s", err)
 		return err
 	}
 	Go(func() {
