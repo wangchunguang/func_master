@@ -281,6 +281,8 @@ func TestLoadBalanceWeightedRoundRobin_Select(t *testing.T) {
 }
 
 type teacher struct {
+	name string
+	age  int
 }
 
 func (t *teacher) Num(bun float32) {
@@ -295,23 +297,29 @@ func (t *teacher) Get(i int) {
 }
 
 func TestStrEqualFold(t *testing.T) {
-	te := &teacher{}
+	te := &teacher{
+		name: "324325",
+		age:  12,
+	}
 	demo1(te)
 
 }
 
 func demo1(v interface{}) {
 	of := reflect.TypeOf(v)
-	fmt.Println(of.NumMethod())
-	for i := 0; i < of.NumMethod(); i++ {
-		fmt.Println(of.Method(i).Name)
-		fmt.Println(of.Method(i).Type)
-	}
+	//fmt.Println(of.NumMethod())
+	fmt.Println(of)
+	elem := of.Elem()
+	fmt.Println(elem)
+	//for i := 0; i < of.NumMethod(); i++ {
+	//	fmt.Println(of.Method(i).Name)
+	//	fmt.Println(of.Method(i).Type)
+	//}
 }
 
-const (
-	num = int(23)
-)
+type s struct {
+	m map[string]string
+}
 
 func TestDateToUnix(t *testing.T) {
 	//b := []byte{'y','s',3}
@@ -319,8 +327,16 @@ func TestDateToUnix(t *testing.T) {
 	//b = append([]byte{0},b...)
 	//fmt.Println(len(b))
 	//fmt.Println(b)
-	fmt.Println(num)
-
+	//fmt.Println(num)
+	m := s{}
+	if m.m == nil {
+		m.m = map[string]string{}
+	}
+	var ma = map[string]string{}
+	ma["2222"] = "wqewq"
+	fmt.Println(ma)
+	m.m["123"] = "sad"
+	fmt.Println(m)
 	//toByte, _ := IntToByte(5435, 4)
 	//fmt.Println(toByte)
 	//fmt.Println(len(toByte))

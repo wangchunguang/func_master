@@ -1,7 +1,6 @@
 package func_master
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -50,7 +49,6 @@ func Try(fn func()) {
 			LogError("error catch = %v", err)
 		}
 	}()
-	fmt.Println(11111)
 	fn()
 	WaitAll.Done()
 }

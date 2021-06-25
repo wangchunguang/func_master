@@ -79,7 +79,7 @@ func (load *LoadBalanceServerRoundRobin) Select(addr string) *BalanceServer {
 		if s == nil {
 			return nil
 		}
-
+		return s
 	}
 	return nil
 }

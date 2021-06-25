@@ -2,6 +2,7 @@ package func_master
 
 import (
 	"encoding/binary"
+	message "func_master/proto"
 	"reflect"
 	"sync"
 	"time"
@@ -389,7 +390,8 @@ type IMsgRegister interface {
 
 // Def的消息处理
 type DefMsgHandler struct {
-	msgMap  map[uint8]HandlerFunc
+	msgMap map[uint8]HandlerFunc
+	// 表示telnet命令
 	typeMap map[reflect.Type]HandlerFunc
 }
 
@@ -431,11 +433,20 @@ func (r *DefMsgHandler) GetHandlerFunc(msgque IMsgQue, msg *Message) HandlerFunc
 
 }
 
-func (r *DefMsgHandler) Register(cmd uint8, fun HandlerFunc) {
+func (r *DefMsgHandler) Register(v interface{}, fun HandlerFunc) {
+	typeOf := reflect.TypeOf(v)
+	if typeOf.Kind() != TypeStruct {
+		return
+	}
 	if r.msgMap == nil {
 		r.msgMap = map[uint8]HandlerFunc{}
 	}
-	r.msgMap[cmd] = fun
+	nameId := message.Message_Id_value
+	for i := 0; i < typeOf.NumMethod(); i++ {
+		if value, ok := nameId[typeOf.Method(i).Name]; ok {
+			r.msgMap[uint8(value)] = fun
+		}
+	}
 }
 
 func (r *DefMsgHandler) RegisterMsg(v interface{}, fun HandlerFunc) {

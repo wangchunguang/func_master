@@ -2,15 +2,12 @@ package func_master
 
 import (
 	"errors"
-	message "func_master/proto"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
 type TypeKind = reflect.Kind
-
-type funcMessage = func(v interface{})
 
 const (
 	TypeInvalid TypeKind = iota
@@ -89,19 +86,5 @@ func ParseBaseKind(kind reflect.Kind, data string) (interface{}, error) {
 	default:
 		LogError("parse failed type not found type:%v data:%v", kind, data)
 		return nil, errors.New("type not found")
-	}
-}
-
-// ReflectStruct 将数据添加进对应的map组合
-func ReflectStruct(v interface{}, fun funcMessage) {
-	typeOf := reflect.TypeOf(v)
-	if typeOf.Kind() != TypeStruct {
-		return
-	}
-	nameId := message.Message_Id_value
-	for i := 0; i < typeOf.NumMethod(); i++ {
-		if value, ok := nameId[typeOf.Method(i).Name]; ok {
-			newsMap[value] = fun
-		}
 	}
 }

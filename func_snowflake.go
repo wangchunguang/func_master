@@ -23,6 +23,7 @@ type Worker struct {
 	Number    int64 // 当前毫秒生成的序列号，从0开始叠加，1毫秒最多生成4096个id
 }
 
+// NewWorker 雪花算法
 func NewWorker(workerId int64) *Worker {
 	if workerId < 0 || workerId > workerMax {
 		panic("Worker ID excess of quantity")

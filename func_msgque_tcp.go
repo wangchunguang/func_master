@@ -291,18 +291,7 @@ func (tcp *tcpMsgQue) write() {
 	}()
 	tcp.wait.Add(1)
 	if tcp.connTyp == ConnTypeGateWay {
-		tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
-		for {
-			select {
-			// 将数据发布到指定的服务
-			case msg := <-tcp.cread:
-				tcp.gateWayWrite(msg)
-			case <-tick.C:
-				if tcp.isTimeout(tick) {
-					break
-				}
-			}
-		}
+		tcp.gateWayWrite()
 	} else {
 		tcp.writeMsg()
 	}
@@ -400,24 +389,46 @@ func (tcp *tcpMsgQue) writeMsg() {
 
 }
 
-func (tcp *tcpMsgQue) gateWayWrite(msg *Message) {
-	writeCount := 0
+func (tcp *tcpMsgQue) gateWayWrite() {
+	tick := time.NewTimer(time.Second * time.Duration(tcp.timeout))
+	var msg *Message
+	count := 0
+	for !IsStop() || msg != nil {
+		select {
+		case msg = <-tcp.cread:
+			err := gateWayRead(msg, count)
+			if err != nil {
+				break
+			}
+		case <-tick.C:
+			if tcp.isTimeout(tick) {
+				break
+			}
+		}
+	}
+	Stop()
+
+}
+
+func gateWayRead(msg *Message, writeCount int) error {
 	hand := make([]byte, MsgHeadSize)
+	// 获取该用户上一次链接时，链接的服务，如果有，直接进行链接，如果没有的话，通过负载均衡重新链接一个服务器
 	// 判断是否有这个服务地址
-	if value, ok := serverMap[ServerName]; ok && !tcp.IsStop() {
-		addr := GateWayAddr(value)
+	// 因为每次获取到管道里面的数据，进行服务器选择，目前未做
+	if value, ok := serverMap[ServerName]; ok && IsStop() {
+		balanceServer := GateWayAddr(value)
 		msg.Head.FastBytes(hand)
-		write, err := addr.Coon.Write(hand[writeCount:])
+		write, err := balanceServer.Coon.Write(hand[writeCount:])
 		if err != nil {
-			LogError("msgque write id:%v err:%v", tcp.id, err)
-			goto WriteStop
+			LogError("msgque write err:%v", err)
+			return err
 		}
 		writeCount += write
 		if writeCount >= MsgHeadSize && msg.Data != nil {
-			write, err = addr.Coon.Write(msg.Data[writeCount-MsgHeadSize : int(msg.Head.Len)])
+			write, err = balanceServer.Coon.Write(msg.Data[writeCount-MsgHeadSize : int(msg.Head.Len)])
 			if err != nil {
-				LogError("msgque write id:%v err:%v", tcp.id, err)
-				goto WriteStop
+				LogError("msgque write err:%v", err)
+				return err
 			}
 			writeCount += write
 		}
@@ -425,8 +436,7 @@ func (tcp *tcpMsgQue) gateWayWrite(msg *Message) {
 			writeCount = 0
 		}
 	}
-WriteStop:
-	Stop()
+	return nil
 }
 
 func (tcp *tcpMsgQue) gateway() {
@@ -518,7 +528,6 @@ func (tcp *tcpMsgQue) waiteListen(msgque *tcpMsgQue) {
 	LogInfo("process read for msgque:%d", msgque.id)
 	msgque.write()
 	LogInfo("process read end for msgque:%d", msgque.id)
-
 }
 
 // ShakeHands 三次握手

@@ -60,7 +60,6 @@ var (
 	atexitMap  = map[uint32]func(){}
 	serverMap  = make(map[string]string)
 	gateWayMap = make(map[string]map[string]*BalanceServer)
-	newsMap    = make(map[int32]funcMessage)
 )
 
 var (
