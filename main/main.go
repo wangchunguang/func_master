@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"func_master"
-	"os"
-	"os/signal"
 )
 
 var worker func_master.Worker
@@ -14,15 +12,30 @@ const (
 )
 
 func main() {
-	c := make(chan int, 1)
-	go demo1(c)
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig)
-	select {
-	case <-sig:
 
-	}
-	fmt.Println(1111111111)
+	list := func_master.List{}
+	fmt.Println(list.IsEmpty())
+	list.HeadSave(1)
+	list.HeadSave(2)
+	list.HeadSave(3)
+	list.HeadSave(4)
+	list.HeadSave(5)
+	list.TailSave("a")
+	list.TailSave(4)
+	list.TailSave("c")
+	list.TailSave(4)
+	list.DeleteAtValue(4)
+	list.RangeList()
+
+	//c := make(chan int, 1)
+	//go demo1(c)
+	//sig := make(chan os.Signal, 1)
+	//signal.Notify(sig)
+	//select {
+	//case <-sig:
+	//
+	//}
+	//fmt.Println(1111111111)
 }
 
 func demo1(c chan int) {
@@ -35,9 +48,5 @@ func demo1(c chan int) {
 			fmt.Println(555555555555)
 		}
 	})
-
-}
-
-func demo2(c chan int) {
 
 }
