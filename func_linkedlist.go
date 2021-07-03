@@ -130,3 +130,22 @@ func (list *List) DeleteAtValue(value interface{}) {
 		}
 	}
 }
+
+// ReverseList 链表的反转 可以尝试从当前的节点的头结点去头部新增元素，链表就形成了以初始的头结点像两边扩展
+func (list *List) ReverseList() *List {
+	if list.IsEmpty() {
+		return nil
+	}
+	head := &List{}
+	cur := list.headNode
+	for cur != nil {
+		head.HeadSave(cur.Value)
+		cur = cur.Next
+	}
+	return head
+}
+
+// lru 缓存淘汰算法
+func (list *List) LruList() {
+
+}
