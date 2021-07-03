@@ -144,8 +144,3 @@ func (list *List) ReverseList() *List {
 	}
 	return head
 }
-
-// lru 缓存淘汰算法
-func (list *List) LruList() {
-
-}
