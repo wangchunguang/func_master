@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"func_master"
+	"math"
+	"sort"
+	"strings"
 )
 
 var (
@@ -15,10 +18,164 @@ const (
 )
 
 func main() {
-	arr := []int{23, 13, 34, 32, 65, 43, 76, 34, 2, 4, 26, 15}
-	func_master.QuickSort(arr, 0, len(arr)-1)
-	fmt.Println(arr)
-	//demo8(arr, 0, len(arr)-1)
+	var pic func_master.PictureNodeInterface
+
+	node := &func_master.ItemGraph{}
+	pic = node
+	for i := 1; i <= 9; i++ {
+		pic.AddNode(&func_master.PictureNode{i})
+	}
+	//生成边
+	A := []int{1, 1, 2, 2, 2, 3, 4, 5, 5, 6, 1}
+	B := []int{2, 5, 3, 4, 5, 4, 5, 6, 7, 8, 9}
+	for i := 0; i < 11; i++ {
+		pic.AddEdges(&func_master.PictureNode{A[i]}, &func_master.PictureNode{B[i]})
+	}
+	pic.String()
+
+}
+
+func readBinaryWatch(turnedOn int) []string {
+	result := []string{}
+	for i := 0; i < 12; i++ {
+		for j := 0; j < 60; j++ {
+			b1 := fmt.Sprintf("%b", i)
+			b2 := fmt.Sprintf("%b", j)
+			sumOne := strings.Count(b1, "1") + strings.Count(b2, "1")
+			fmt.Println(b1, b2)
+			if sumOne == turnedOn {
+				result = append(result, fmt.Sprintf("%d:%02d", i, j))
+			}
+		}
+	}
+	return result
+
+}
+
+func checkOnesSegment(s string) bool {
+	//if s =="1" {
+	//	return true
+	//}
+	//var start uint8 = 49
+	//num := 0
+	return !strings.Contains(s, "01")
+	//for i := 1; i < len(s); i++ {
+	//	fmt.Println(len(s))
+	//	num +=1
+	//	if start == s[i] {
+	//		return true
+	//	}else if num<= len(s){
+	//		start = s[i]
+	//		i++
+	//	}
+	//}
+	//return false
+}
+
+func getMoneyAmount(n int) int {
+	// 采用动态规划实现
+	money := make([][]int, n+1)
+	// 先将数据补充
+	for i := 0; i <= n; i++ {
+		money[i] = make([]int, n+1)
+	}
+	for i := n; i >= 1; i-- {
+		for j := i; j <= n; j++ {
+			if i == j {
+				money[i][j] = 0
+			} else {
+				money[i][j] = (1 << 31) - 1
+				for x := i; i < j; x++ {
+					money[i][j] = min(money[i][j], max(money[i][x-1], money[x+1][j])+x)
+				}
+			}
+
+		}
+	}
+	return money[1][n]
+}
+
+func min(a, b int) int {
+	if a > b {
+		return b
+	} else {
+		return a
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func mySqrt(x int) int {
+	middle := 1
+	start := 0
+	for {
+		start = middle * middle
+		if start == x {
+			return middle
+		}
+		if start < x {
+			middle = middle * 2
+			continue
+		}
+
+		return binary(middle/2, middle, x)
+	}
+}
+
+func binary(start, end, x int) int {
+	sum := 0
+	for start <= end {
+		mid := (start + end) / 2
+		sum = mid * mid
+		if sum == x {
+			return mid
+		} else if sum < x {
+			start = mid + 1
+		} else {
+			end = mid - 1
+		}
+
+	}
+	return end
+}
+
+func coinChange(coins []int, amount int) int {
+	// 背包问题·
+	dp := make([]int, amount+1)
+	for i := 1; i <= amount; i++ {
+		dp[i] = amount + 1
+		for _, coin := range coins {
+			if i >= coin && dp[i-coin]+1 < dp[i] {
+				fmt.Println(i, coin, dp[i-coin]+1, dp[i])
+				dp[i] = dp[i-coin] + 1
+			}
+		}
+	}
+	if dp[amount] == amount+1 {
+		return -1
+	}
+	return dp[amount]
+}
+func coinChange1(coins []int, amount int) int {
+	count := make([]int, amount+1)
+	for i := 1; i < len(count); i++ {
+		count[i] = math.MaxInt32
+		for _, j := range coins {
+			if i >= j {
+				count[i] = min(count[i], count[i-j]+1)
+			}
+		}
+	}
+	if count[amount] > amount {
+		return -1
+	} else {
+		return count[amount]
+	}
 }
 
 func demo1(c chan int) {
@@ -164,4 +321,39 @@ func demo9(arr []int, left, right int) int {
 	arr[left] = value
 	fmt.Println(arr)
 	return left
+}
+
+// value: 硬币币值, n: 硬币数量, w: 支付金额
+func lfchange(value []int, n int, w int) int {
+	sort.Ints(value)
+	// 最小币值
+	minV := value[0]
+	// dp[i]表示支付金额为i需要多少个硬币
+	dp := make([]int, w+1)
+	for _, v := range value { // 初始化状态
+		if v > w {
+			break
+		}
+		dp[v] = 1
+	}
+	// 硬币数
+	var count int
+	for i := minV + 1; i <= w; i++ { // 动态规划方程转移
+		count = 0
+		for j := n - 1; j >= 0; j-- {
+			if i%value[j] == 0 {
+				dp[i] = i / value[j]
+				break
+			}
+		}
+		for j := minV; j < i; j++ {
+			if dp[j] != 0 && dp[i-j] != 0 {
+				count = dp[j] + dp[i-j]
+				if count < dp[i] {
+					dp[i] = count
+				}
+			}
+		}
+	}
+	return dp[w]
 }

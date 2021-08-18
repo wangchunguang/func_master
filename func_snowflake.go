@@ -54,3 +54,20 @@ func (w *Worker) GetId() int64 {
 	ID := int64((now-startTime)<<timeShift | (w.WorkerId << workerShift) | (w.Number))
 	return ID
 }
+
+// Bsearch 二分查找算法
+func Bsearch(arr []int, value int, left, right int) int {
+	if left > right {
+		return -1
+	}
+	mid := left + (right-left)/2
+	if arr[mid] == value {
+		return arr[mid]
+	} else if arr[left] < value {
+		return Bsearch(arr, value, mid+1, right)
+	} else {
+
+		return Bsearch(arr, value, left, mid-1)
+	}
+
+}
