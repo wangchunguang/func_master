@@ -66,7 +66,6 @@ func Bsearch(arr []int, value int, left, right int) int {
 	} else if arr[left] < value {
 		return Bsearch(arr, value, mid+1, right)
 	} else {
-
 		return Bsearch(arr, value, left, mid-1)
 	}
 
